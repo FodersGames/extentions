@@ -8,7 +8,9 @@
             this.popupContent = null;
             this.filterSelect = null;
             this.searchInput = null;
-            this.autoScroll = true; // Added auto-scroll feature
+            this.theme = 'dark'; // Default theme
+            this.selectedLogs = new Set(); // Store selected log indices
+            this.searchHistory = []; // Store search history
         }
 
         getInfo() {
@@ -101,16 +103,12 @@
                 this.popup.style.width = '85%';
                 this.popup.style.maxWidth = '900px';
                 this.popup.style.height = '80%';
-                this.popup.style.backgroundColor = '#222'; // Darker background
-                this.popup.style.border = '1px solid #444';
-                this.popup.style.borderRadius = '8px';
-                this.popup.style.boxShadow = '0 6px 12px rgba(0, 0, 0, 0.7)';
+                this.applyTheme(); // Apply initial theme
                 this.popup.style.zIndex = '9999';
                 this.popup.style.padding = '20px';
                 this.popup.style.overflow = 'hidden';
                 this.popup.style.display = 'none';
                 this.popup.style.fontFamily = '"Roboto Mono", Consolas, monospace';
-                this.popup.style.color = '#eee'; // Light text color
 
                 // Close button: repositioned closer to the edge
                 const closeButton = document.createElement('span');
@@ -140,12 +138,37 @@
                 controlsBar.style.alignItems = 'center';
                 controlsBar.style.gap = '10px';
 
+                // Theme selection dropdown
+                const themeSelect = document.createElement('select');
+                themeSelect.style.padding = '6px';
+                themeSelect.style.borderRadius = '4px';
+                themeSelect.style.border = '1px solid #555';
+                themeSelect.style.backgroundColor = '#2c2c2c';
+                themeSelect.style.color = '#dcdcdc';
+                const themeOptions = [
+                    { value: 'dark', text: 'Dark' },
+                    { value: 'light', text: 'Light' },
+                    { value: 'highContrast', text: 'High Contrast' }
+                ];
+                themeOptions.forEach(opt => {
+                    const optionElem = document.createElement('option');
+                    optionElem.value = opt.value;
+                    optionElem.text = opt.text;
+                    themeSelect.appendChild(optionElem);
+                });
+                themeSelect.value = this.theme;
+                themeSelect.addEventListener('change', () => {
+                    this.theme = themeSelect.value;
+                    this.applyTheme();
+                });
+                controlsBar.appendChild(themeSelect);
+
                 // Filter dropdown
                 this.filterSelect = document.createElement('select');
                 this.filterSelect.style.padding = '6px';
                 this.filterSelect.style.borderRadius = '4px';
                 this.filterSelect.style.border = '1px solid #555';
-                this.filterSelect.style.backgroundColor = '#333';
+                this.filterSelect.style.backgroundColor = '#2c2c2c';
                 this.filterSelect.style.color = '#dcdcdc';
                 const options = [
                     { value: 'all', text: 'All' },
@@ -162,7 +185,7 @@
                 this.filterSelect.addEventListener('change', () => this.applyFilters());
                 controlsBar.appendChild(this.filterSelect);
 
-                // Search bar
+                // Search bar with history
                 this.searchInput = document.createElement('input');
                 this.searchInput.type = 'text';
                 this.searchInput.placeholder = 'Search...';
@@ -170,30 +193,24 @@
                 this.searchInput.style.padding = '6px';
                 this.searchInput.style.borderRadius = '4px';
                 this.searchInput.style.border = '1px solid #555';
-                this.searchInput.style.backgroundColor = '#333';
+                this.searchInput.style.backgroundColor = '#2c2c2c';
                 this.searchInput.style.color = '#dcdcdc';
                 this.searchInput.addEventListener('input', () => this.applyFilters());
+                 this.searchInput.addEventListener('focus', () => {
+                    this.showSearchHistory();
+                });
                 controlsBar.appendChild(this.searchInput);
 
-                // Auto-scroll checkbox
-                const autoScrollCheckbox = document.createElement('input');
-                autoScrollCheckbox.type = 'checkbox';
-                autoScrollCheckbox.id = 'autoScrollCheckbox';
-                autoScrollCheckbox.checked = this.autoScroll;
-                autoScrollCheckbox.addEventListener('change', () => {
-                    this.autoScroll = autoScrollCheckbox.checked;
-                    if (this.autoScroll) {
-                        this.scrollToBottom();
-                    }
-                });
-                const autoScrollLabel = document.createElement('label');
-                autoScrollLabel.htmlFor = 'autoScrollCheckbox';
-                autoScrollLabel.innerText = 'Auto-scroll';
-                autoScrollLabel.style.color = '#eee';
-                autoScrollLabel.style.marginLeft = '5px';
-
-                controlsBar.appendChild(autoScrollCheckbox);
-                controlsBar.appendChild(autoScrollLabel);
+                 const regexCheckbox = document.createElement('input');
+                regexCheckbox.type = 'checkbox';
+                regexCheckbox.id = 'regexCheckbox';
+                const regexLabel = document.createElement('label');
+                regexLabel.htmlFor = 'regexCheckbox';
+                regexLabel.innerText = 'Regex';
+                regexLabel.style.color = '#eee';
+                regexLabel.style.marginLeft = '5px';
+                controlsBar.appendChild(regexCheckbox);
+                controlsBar.appendChild(regexLabel);
 
                 // Export buttons
                 const exportTxtButton = document.createElement('button');
@@ -212,7 +229,6 @@
                     exportTxtButton.style.backgroundColor = '#27ae60';
                 });
                 exportTxtButton.addEventListener('click', () => this.exportLogsTxt());
-                controlsBar.appendChild(exportTxtButton);
 
                 const exportJsonButton = document.createElement('button');
                 exportJsonButton.innerText = 'Export JSON';
@@ -230,6 +246,8 @@
                     exportJsonButton.style.backgroundColor = '#27ae60';
                 });
                 exportJsonButton.addEventListener('click', () => this.exportLogsJson());
+
+                controlsBar.appendChild(exportTxtButton);
                 controlsBar.appendChild(exportJsonButton);
 
                 this.popup.appendChild(controlsBar);
@@ -242,20 +260,9 @@
                 this.popup.appendChild(this.popupContent);
 
                 document.body.appendChild(this.popup);
-
-                // Attach scroll listener for manual scroll detection
-                this.popupContent.addEventListener('scroll', () => {
-                    if (this.popupContent.scrollTop + this.popupContent.clientHeight < this.popupContent.scrollHeight - 10) {
-                        this.autoScroll = false;
-                        autoScrollCheckbox.checked = false;
-                    } else if (autoScrollCheckbox.checked) {
-                        this.autoScroll = true;
-                    }
-                });
             }
             this.popup.style.display = 'block';
             this.applyFilters();
-            this.scrollToBottom();
         }
 
         log(args) {
@@ -276,7 +283,7 @@
             logEntry.style.padding = '12px';
             logEntry.style.marginBottom = '12px';
             logEntry.style.borderRadius = '4px';
-            logEntry.style.backgroundColor = '#333'; // Darker log entry
+            this.applyThemeToLogEntry(logEntry); // Apply theme to log entry
             logEntry.style.borderLeft = `4px solid ${this.getLogColor(type)}`;
             logEntry.dataset.type = type;
 
@@ -305,7 +312,7 @@
 
             const logTitle = document.createElement('span');
             logTitle.style.marginLeft = '10px';
-            logTitle.style.color = '#eee'; // Light text color
+            logTitle.style.color = this.getTextColor();
             logTitle.innerText = title;
             headerLeft.appendChild(logTitle);
 
@@ -354,16 +361,55 @@
 
             this.popupContent.appendChild(logEntry);
             this.logs.push({ type, title, description, timestamp });
-
-            if (this.autoScroll) {
-                this.scrollToBottom();
-            }
-
             this.applyFilters();
         }
 
-        scrollToBottom() {
-            this.popupContent.scrollTop = this.popupContent.scrollHeight;
+        applyTheme() {
+            switch (this.theme) {
+                case 'dark':
+                    this.popup.style.backgroundColor = '#222';
+                    this.popup.style.color = '#eee';
+                    break;
+                case 'light':
+                    this.popup.style.backgroundColor = '#eee';
+                    this.popup.style.color = '#222';
+                    break;
+                case 'highContrast':
+                    this.popup.style.backgroundColor = '#000';
+                    this.popup.style.color = '#ff0';
+                    break;
+            }
+
+             Array.from(this.popupContent.children).forEach(logEntry => {
+                this.applyThemeToLogEntry(logEntry);
+            });
+        }
+
+        applyThemeToLogEntry(logEntry) {
+            switch (this.theme) {
+                case 'dark':
+                    logEntry.style.backgroundColor = '#333';
+                    break;
+                case 'light':
+                    logEntry.style.backgroundColor = '#ddd';
+                    break;
+                case 'highContrast':
+                    logEntry.style.backgroundColor = '#111';
+                    break;
+            }
+        }
+
+        getTextColor() {
+            switch (this.theme) {
+                case 'dark':
+                    return '#eee';
+                case 'light':
+                    return '#222';
+                case 'highContrast':
+                    return '#ff0';
+                default:
+                    return '#eee';
+            }
         }
 
         getLogColor(type) {
@@ -419,13 +465,32 @@
         applyFilters() {
             const filterValue = this.filterSelect.value;
             const searchTerm = this.searchInput.value.toLowerCase();
+            const useRegex = document.getElementById('regexCheckbox').checked;
+
+            if (searchTerm) {
+                this.addSearchTermToHistory(searchTerm);
+            }
 
             Array.from(this.popupContent.children).forEach(logEntry => {
                 const logType = logEntry.dataset.type;
                 const logText = logEntry.innerText.toLowerCase();
 
+                let searchMatch = true;
+                if (searchTerm) {
+                    try {
+                        if (useRegex) {
+                            const regex = new RegExp(searchTerm, 'i');
+                            searchMatch = regex.test(logText);
+                        } else {
+                            searchMatch = logText.includes(searchTerm);
+                        }
+                    } catch (error) {
+                        console.error('Invalid regex:', error);
+                        searchMatch = false;
+                    }
+                }
+
                 const typeMatch = filterValue === 'all' || logType === filterValue;
-                const searchMatch = searchTerm === '' || logText.includes(searchTerm);
 
                 if (typeMatch && searchMatch) {
                     logEntry.style.display = 'block';
@@ -433,6 +498,21 @@
                     logEntry.style.display = 'none';
                 }
             });
+        }
+
+         addSearchTermToHistory(term) {
+            if (!this.searchHistory.includes(term)) {
+                this.searchHistory.push(term);
+                if (this.searchHistory.length > 10) {
+                    this.searchHistory.shift();
+                }
+            }
+        }
+
+         showSearchHistory() {
+            // This is a placeholder - implement your search history display here.
+            // For example, create a dropdown or list below the search box.
+            console.log('Search History:', this.searchHistory);
         }
     }
 
