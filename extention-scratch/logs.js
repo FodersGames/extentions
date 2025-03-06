@@ -1,177 +1,103 @@
 (function(Scratch) {
     'use strict';
 
-    class LogsExtension {
+    class LogExtension {
         constructor() {
             this.logs = [];
-            this.popup = null;
-            this.popupContent = null;
+            this.logWindow = null;
         }
 
         getInfo() {
             return {
-                id: 'logsExtension',
-                name: 'Logs Extension',
+                id: 'logExtension',
+                name: 'Logs',
                 blocks: [
-                    {
-                        opcode: 'showLogs',
-                        blockType: Scratch.BlockType.COMMAND,
-                        text: 'Show logs popup',
-                    },
-                    {
-                        opcode: 'log',
-                        blockType: Scratch.BlockType.COMMAND,
-                        text: 'Log [MESSAGE]',
-                        arguments: {
-                            MESSAGE: {
-                                type: Scratch.ArgumentType.STRING,
-                                defaultValue: 'This is a log message'
-                            }
-                        }
-                    },
-                    {
-                        opcode: 'warn',
-                        blockType: Scratch.BlockType.COMMAND,
-                        text: 'Warn [MESSAGE]',
-                        arguments: {
-                            MESSAGE: {
-                                type: Scratch.ArgumentType.STRING,
-                                defaultValue: 'This is a warning message'
-                            }
-                        }
-                    },
-                    {
-                        opcode: 'error',
-                        blockType: Scratch.BlockType.COMMAND,
-                        text: 'Error [MESSAGE]',
-                        arguments: {
-                            MESSAGE: {
-                                type: Scratch.ArgumentType.STRING,
-                                defaultValue: 'This is an error message'
-                            }
-                        }
-                    },
-                    {
-                        opcode: 'clearLogs',
-                        blockType: Scratch.BlockType.COMMAND,
-                        text: 'Clear logs',
-                    },
-                    {
-                        opcode: 'closeLogs',
-                        blockType: Scratch.BlockType.COMMAND,
-                        text: 'Close logs popup',
-                    }
-                ]
+                    { opcode: 'showLogs', blockType: Scratch.BlockType.COMMAND, text: 'Show Logs' },
+                    { opcode: 'addLog', blockType: Scratch.BlockType.COMMAND, text: 'Log [MESSAGE]', arguments: { MESSAGE: { type: Scratch.ArgumentType.STRING, defaultValue: 'Hello World' } } },
+                    { opcode: 'addWarn', blockType: Scratch.BlockType.COMMAND, text: 'Warn [MESSAGE]', arguments: { MESSAGE: { type: Scratch.ArgumentType.STRING, defaultValue: 'Warning message' } } },
+                    { opcode: 'addError', blockType: Scratch.BlockType.COMMAND, text: 'Error [MESSAGE]', arguments: { MESSAGE: { type: Scratch.ArgumentType.STRING, defaultValue: 'Error message' } } },
+                    { opcode: 'clearLogs', blockType: Scratch.BlockType.COMMAND, text: 'Clear Logs' },
+                    { opcode: 'closeLogs', blockType: Scratch.BlockType.COMMAND, text: 'Close Logs' },
+                    { opcode: 'exportLogs', blockType: Scratch.BlockType.COMMAND, text: 'Export Logs as [FORMAT]', arguments: { FORMAT: { type: Scratch.ArgumentType.STRING, menu: 'logFormats' } } },
+                    { opcode: 'filterLogs', blockType: Scratch.BlockType.COMMAND, text: 'Filter logs by [TYPE]', arguments: { TYPE: { type: Scratch.ArgumentType.STRING, menu: 'logTypes' } } },
+                    { opcode: 'searchLogs', blockType: Scratch.BlockType.COMMAND, text: 'Search logs for [QUERY]', arguments: { QUERY: { type: Scratch.ArgumentType.STRING, defaultValue: 'keyword' } } }
+                ],
+                menus: {
+                    logFormats: { acceptReporters: false, items: ['txt', 'json'] },
+                    logTypes: { acceptReporters: false, items: ['all', 'log', 'warn', 'error'] }
+                }
             };
         }
 
+        addLog(args) { this.addToLogs('log', args.MESSAGE); }
+        addWarn(args) { this.addToLogs('warn', args.MESSAGE); }
+        addError(args) { this.addToLogs('error', args.MESSAGE); }
+
+        addToLogs(type, message) {
+            const timestamp = new Date().toLocaleTimeString();
+            this.logs.push({ type, message, timestamp });
+            console[type](message);
+        }
+
         showLogs() {
-            // Create the popup if it doesn't exist
-            if (!this.popup) {
-                this.popup = document.createElement('div');
-                this.popup.style.position = 'fixed';
-                this.popup.style.top = '50%';
-                this.popup.style.left = '50%';
-                this.popup.style.transform = 'translate(-50%, -50%)';
-                this.popup.style.width = '80%';
-                this.popup.style.maxWidth = '600px';
-                this.popup.style.height = '70%';
-                this.popup.style.backgroundColor = '#fff';
-                this.popup.style.border = '1px solid #ccc';
-                this.popup.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.2)';
-                this.popup.style.zIndex = '9999';
-                this.popup.style.padding = '20px';
-                this.popup.style.overflowY = 'auto';
-                this.popup.style.display = 'none'; // Initially hidden
-
-                // Close button
-                const closeButton = document.createElement('span');
-                closeButton.innerHTML = '&times;';
-                closeButton.style.position = 'absolute';
-                closeButton.style.top = '10px';
-                closeButton.style.right = '10px';
-                closeButton.style.fontSize = '24px';
-                closeButton.style.cursor = 'pointer';
-                closeButton.addEventListener('click', () => {
-                    this.popup.style.display = 'none'; // Hide the popup when close is clicked
-                });
-
-                // Create the content container for logs
-                this.popupContent = document.createElement('div');
-                this.popupContent.style.fontFamily = 'Arial, sans-serif';
-                this.popupContent.style.fontSize = '16px';
-
-                // Add the close button and content to the popup
-                this.popup.appendChild(closeButton);
-                this.popup.appendChild(this.popupContent);
-                document.body.appendChild(this.popup);
-            }
-
-            // Show the popup
-            this.popup.style.display = 'block';
+            if (this.logWindow) return;
+            this.logWindow = document.createElement('div');
+            this.logWindow.style = 'position: fixed; bottom: 10px; right: 10px; width: 300px; height: 400px; background: white; border: 1px solid black; overflow-y: auto; padding: 10px; z-index: 9999;';
+            
+            const closeButton = document.createElement('button');
+            closeButton.textContent = '×';
+            closeButton.style = 'position: absolute; top: 5px; right: 5px; background: red; color: white; border: none; cursor: pointer;';
+            closeButton.onclick = () => this.closeLogs();
+            
+            const searchBar = document.createElement('input');
+            searchBar.type = 'text';
+            searchBar.placeholder = 'Search logs...';
+            searchBar.style = 'width: 100%; margin-bottom: 5px;';
+            searchBar.oninput = () => this.updateLogsDisplay(searchBar.value);
+            
+            this.logWindow.appendChild(closeButton);
+            this.logWindow.appendChild(searchBar);
+            document.body.appendChild(this.logWindow);
+            this.updateLogsDisplay();
         }
 
-        log(args) {
-            this.addLog('LOG', args.MESSAGE);
+        updateLogsDisplay(query = '') {
+            if (!this.logWindow) return;
+            const logsList = this.logWindow.querySelector('ul') || document.createElement('ul');
+            logsList.innerHTML = '';
+            this.logs.filter(log => log.message.includes(query)).forEach(log => {
+                const logItem = document.createElement('li');
+                logItem.textContent = `[${log.timestamp}] ${log.message}`;
+                logItem.style = `color: ${log.type === 'error' ? 'red' : log.type === 'warn' ? 'orange' : 'black'}`;
+                logItem.onclick = () => navigator.clipboard.writeText(log.message);
+                logsList.appendChild(logItem);
+            });
+            if (!this.logWindow.contains(logsList)) this.logWindow.appendChild(logsList);
         }
 
-        warn(args) {
-            this.addLog('WARNING', args.MESSAGE);
+        clearLogs() { this.logs = []; this.updateLogsDisplay(); }
+        closeLogs() { if (this.logWindow) { document.body.removeChild(this.logWindow); this.logWindow = null; } }
+
+        exportLogs(args) {
+            const format = args.FORMAT;
+            const data = format === 'json' ? JSON.stringify(this.logs, null, 2) : this.logs.map(log => `[${log.timestamp}] ${log.message}`).join('\n');
+            const blob = new Blob([data], { type: format === 'json' ? 'application/json' : 'text/plain' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `logs.${format}`;
+            link.click();
         }
 
-        error(args) {
-            this.addLog('ERROR', args.MESSAGE);
-        }
-
-        addLog(type, message) {
-            const logEntry = document.createElement('div');
-            logEntry.style.padding = '5px';
-            logEntry.style.marginBottom = '10px';
-            logEntry.style.borderBottom = '1px solid #eee';
-
-            const logType = document.createElement('span');
-            logType.style.fontWeight = 'bold';
-            logType.style.color = this.getLogColor(type);
-            logType.innerText = `[${type}]`;
-
-            const logMessage = document.createElement('span');
-            logMessage.style.marginLeft = '10px';
-            logMessage.innerText = message;
-
-            logEntry.appendChild(logType);
-            logEntry.appendChild(logMessage);
-            this.popupContent.appendChild(logEntry);
-            this.logs.push({ type, message });
-
-            // Auto scroll to bottom to show the latest log
-            this.popupContent.scrollTop = this.popupContent.scrollHeight;
-        }
-
-        getLogColor(type) {
-            switch (type) {
-                case 'LOG':
-                    return 'blue';
-                case 'WARNING':
-                    return 'orange';
-                case 'ERROR':
-                    return 'red';
-                default:
-                    return 'black';
+        filterLogs(args) {
+            this.updateLogsDisplay();
+            if (args.TYPE !== 'all') {
+                this.logs = this.logs.filter(log => log.type === args.TYPE);
+                this.updateLogsDisplay();
             }
         }
 
-        clearLogs() {
-            this.logs = [];
-            this.popupContent.innerHTML = ''; // Clear all logs in the popup
-        }
-
-        closeLogs() {
-            if (this.popup) {
-                this.popup.style.display = 'none'; // Hide the popup
-            }
-        }
+        searchLogs(args) { this.updateLogsDisplay(args.QUERY); }
     }
 
-    Scratch.extensions.register(new LogsExtension());
-
+    Scratch.extensions.register(new LogExtension());
 })(Scratch);
