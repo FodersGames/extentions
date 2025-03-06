@@ -11,6 +11,7 @@
             this.theme = 'dark';
             this.searchHistory = [];
             this.isSearchHistoryVisible = false;
+            this.variableStats = {}; // Store statistics for monitored variables
         }
 
         getInfo() {
@@ -51,6 +52,23 @@
                         }
                     },
                     {
+                        opcode: 'conditionalLog',
+                        blockType: Scratch.BlockType.COMMAND,
+                        text: 'Conditional Log If [CONDITION] Then Log [MESSAGE]',
+                        arguments: {
+                            CONDITION: { type: Scratch.ArgumentType.BOOLEAN },
+                            MESSAGE: { type: Scratch.ArgumentType.STRING, defaultValue: 'Condition Met!' }
+                        }
+                    },
+                    {
+                        opcode: 'monitorVariable',
+                        blockType: Scratch.BlockType.COMMAND,
+                        text: 'Monitor Variable [VARIABLE]',
+                        arguments: {
+                            VARIABLE: { type: Scratch.ArgumentType.STRING, defaultValue: 'myVariable' }
+                        }
+                    },
+                    {
                         opcode: 'clearLogs',
                         blockType: Scratch.BlockType.COMMAND,
                         text: 'Clear logs'
@@ -70,7 +88,11 @@
                         blockType: Scratch.BlockType.COMMAND,
                         text: 'Export logs as JSON'
                     }
-                ]
+                ],
+                menus: {
+                    logTypes: ['LOG', 'WARNING', 'ERROR'],
+                    iconTypes: ['info', 'warning', 'error'] // Example icon types
+                }
             };
         }
 
@@ -101,7 +123,7 @@
                 closeButton.style.cursor = 'pointer';
                 closeButton.addEventListener('click', () => {
                     this.popup.style.display = 'none';
-                    this.hideSearchHistory(); // Hide search history when closing
+                    this.hideSearchHistory();
                 });
                 this.popup.appendChild(closeButton);
 
@@ -157,7 +179,7 @@
                 controlsBar.appendChild(this.filterSelect);
 
                 const searchContainer = document.createElement('div');
-                searchContainer.style.position = 'relative'; // For positioning history
+                searchContainer.style.position = 'relative';
 
                 this.searchInput = document.createElement('input');
                 this.searchInput.type = 'text';
@@ -170,7 +192,7 @@
                 this.searchInput.style.color = '#dcdcdc';
                 this.searchInput.addEventListener('input', () => this.applyFilters());
                 this.searchInput.addEventListener('focus', () => this.showSearchHistory());
-                this.searchInput.addEventListener('blur', () => setTimeout(() => this.hideSearchHistory(), 100)); // Delay to allow click
+                this.searchInput.addEventListener('blur', () => setTimeout(() => this.hideSearchHistory(), 100));
                 searchContainer.appendChild(this.searchInput);
 
                 this.searchHistoryList = document.createElement('ul');
@@ -185,7 +207,7 @@
                 this.searchHistoryList.style.color = '#fff';
                 this.searchHistoryList.style.borderRadius = '4px';
                 this.searchHistoryList.style.border = '1px solid #555';
-                this.searchHistoryList.style.display = 'none'; // Hidden by default
+                this.searchHistoryList.style.display = 'none';
                 searchContainer.appendChild(this.searchHistoryList);
 
                 controlsBar.appendChild(searchContainer);
@@ -226,9 +248,14 @@
 
                 this.popup.appendChild(controlsBar);
 
+                this.variableStatsDiv = document.createElement('div'); // Variable stats display
+                this.variableStatsDiv.style.marginTop = '10px';
+                this.variableStatsDiv.style.color = this.getTextColor();
+                this.popup.appendChild(this.variableStatsDiv);
+
                 this.popupContent = document.createElement('div');
                 this.popupContent.style.overflowY = 'auto';
-                this.popupContent.style.height = 'calc(100% - 80px)';
+                this.popupContent.style.height = 'calc(100% - 150px)'; // Adjusted height
                 this.popupContent.style.paddingRight = '10px';
                 this.popup.appendChild(this.popupContent);
 
@@ -236,6 +263,7 @@
             }
             this.popup.style.display = 'block';
             this.applyFilters();
+            this.updateVariableStatsDisplay();
         }
 
         log(args) {
@@ -250,7 +278,61 @@
             this.addLog('ERROR', args.TITLE, args.DESCRIPTION);
         }
 
-        addLog(type, title, description) {
+        conditionalLog(args) {
+            if (args.CONDITION) {
+                this.addLog('LOG', 'Conditional Log', args.MESSAGE);
+            }
+        }
+
+        monitorVariable(args) {
+            const variableName = args.VARIABLE;
+            if (!this.variableStats[variableName]) {
+                this.variableStats[variableName] = {
+                    min: Infinity,
+                    max: -Infinity,
+                    sum: 0,
+                    count: 0,
+                    latest: null
+                };
+            }
+            this.updateVariableStats(variableName);
+        }
+
+        updateVariableStats(variableName) {
+            const variable = Scratch.vm.runtime.getVariable(variableName);
+            if (variable) {
+                const value = Scratch.Cast.toNumber(variable.value);
+                const stats = this.variableStats[variableName];
+
+                stats.latest = value;
+                stats.min = Math.min(stats.min, value);
+                stats.max = Math.max(stats.max, value);
+                stats.sum += value;
+                stats.count++;
+
+                this.updateVariableStatsDisplay();
+            }
+        }
+
+        updateVariableStatsDisplay() {
+            this.variableStatsDiv.innerHTML = '';
+            for (const variableName in this.variableStats) {
+                const stats = this.variableStats[variableName];
+                const variableDiv = document.createElement('div');
+                variableDiv.style.marginBottom = '5px';
+                variableDiv.style.color = this.getTextColor();
+                variableDiv.innerHTML = `
+                    <b>${variableName}:</b><br>
+                    Latest: ${stats.latest}<br>
+                    Min: ${stats.min === Infinity ? 'N/A' : stats.min}, 
+                    Max: ${stats.max === -Infinity ? 'N/A' : stats.max}, 
+                    Avg: ${stats.count === 0 ? 'N/A' : (stats.sum / stats.count).toFixed(2)}
+                `;
+                this.variableStatsDiv.appendChild(variableDiv);
+            }
+        }
+
+        addLog(type, title, description, icon = 'info') {
             const timestamp = new Date().toISOString();
             const logEntry = document.createElement('div');
             logEntry.style.padding = '12px';
@@ -259,6 +341,7 @@
             this.applyThemeToLogEntry(logEntry);
             logEntry.style.borderLeft = `4px solid ${this.getLogColor(type)}`;
             logEntry.dataset.type = type;
+            logEntry.dataset.icon = icon; // Store the icon type
 
             const headerDiv = document.createElement('div');
             headerDiv.style.display = 'flex';
@@ -269,6 +352,11 @@
             const headerLeft = document.createElement('div');
             headerLeft.style.display = 'flex';
             headerLeft.style.alignItems = 'center';
+
+            const iconSpan = document.createElement('span');
+            iconSpan.innerHTML = this.getIconHTML(icon); // Insert the icon
+            iconSpan.style.marginRight = '5px';
+            headerLeft.appendChild(iconSpan);
 
             const logType = document.createElement('span');
             logType.style.fontWeight = 'bold';
@@ -335,6 +423,7 @@
 
             this.popup.style.backgroundColor = bgColor;
             this.popup.style.color = textColor;
+            if (this.variableStatsDiv) this.variableStatsDiv.style.color = textColor;
 
             if (this.popupContent) {
                 Array.from(this.popupContent.children).forEach(logEntry => {
@@ -359,6 +448,14 @@
                 case 'WARNING': return '#f39c12';
                 case 'ERROR': return '#e74c3c';
                 default: return '#dcdcdc';
+            }
+        }
+
+        getIconHTML(icon) {
+            switch (icon) {
+                case 'warning': return '⚠️';
+                case 'error': return '❌';
+                default: return 'ℹ️'; // Info icon
             }
         }
 
