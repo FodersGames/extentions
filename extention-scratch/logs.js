@@ -9,7 +9,6 @@
             this.popupContent = null;
             this.filterSelect = null;
             this.searchInput = null;
-            this.theme = 'dark';
         }
 
         getInfo() {
@@ -79,6 +78,11 @@
                         }
                     },
                     {
+                         opcode: 'isOnline',
+                        blockType: Scratch.BlockType.BOOLEAN,
+                        text: 'Is Online'
+                    },
+                    {
                         opcode: 'clearLogs',
                         blockType: Scratch.BlockType.COMMAND,
                         text: 'Clear logs'
@@ -104,41 +108,47 @@
 
         showLogs() {
             if (!this.popup) {
-                // Create main popup container
+                // Create main popup container with a style inspired by Lunar Unity Console v1.8.1
                 this.popup = document.createElement('div');
                 this.popup.style.position = 'fixed';
                 this.popup.style.top = '50%';
                 this.popup.style.left = '50%';
                 this.popup.style.transform = 'translate(-50%, -50%)';
-                this.popup.style.width = '80%';
-                this.popup.style.maxWidth = '800px';
-                this.popup.style.height = '70%';
-                this.popup.style.backgroundColor = '#282c34'; // Dark background
-                this.popup.style.border = '1px solid #44475a'; // Subtle border
-                this.popup.style.borderRadius = '10px'; // Rounded corners
-                this.popup.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.5)'; // Soft shadow
+                this.popup.style.width = '85%';
+                this.popup.style.maxWidth = '900px';
+                this.popup.style.height = '80%';
+                this.popup.style.backgroundColor = '#1b1b1b';
+                this.popup.style.border = '1px solid #333';
+                this.popup.style.borderRadius = '8px';
+                this.popup.style.boxShadow = '0 6px 12px rgba(0, 0, 0, 0.7)';
                 this.popup.style.zIndex = '9999';
                 this.popup.style.padding = '20px';
                 this.popup.style.overflow = 'hidden';
                 this.popup.style.display = 'none';
-                this.popup.style.fontFamily = 'sans-serif'; // Modern font
-                this.popup.style.color = '#abb2bf'; // Muted text color
+                this.popup.style.fontFamily = '"Roboto Mono", Consolas, monospace';
 
-                // Close button
+                // Close button: repositioned closer to the edge
                 const closeButton = document.createElement('span');
                 closeButton.innerHTML = '&times;';
                 closeButton.style.position = 'absolute';
                 closeButton.style.top = '10px';
                 closeButton.style.right = '10px';
-                closeButton.style.fontSize = '24px';
-                closeButton.style.color = '#e06c75'; // Reddish close color
+                closeButton.style.fontSize = '28px';
+                closeButton.style.color = '#e74c3c';
                 closeButton.style.cursor = 'pointer';
+                closeButton.style.transition = 'color 0.2s';
+                closeButton.addEventListener('mouseover', () => {
+                    closeButton.style.color = '#ff6b6b';
+                });
+                closeButton.addEventListener('mouseout', () => {
+                    closeButton.style.color = '#e74c3c';
+                });
                 closeButton.addEventListener('click', () => {
                     this.popup.style.display = 'none';
                 });
                 this.popup.appendChild(closeButton);
 
-                // Controls bar
+                // Control bar: filter, search, and export buttons
                 const controlsBar = document.createElement('div');
                 controlsBar.style.marginBottom = '15px';
                 controlsBar.style.display = 'flex';
@@ -147,11 +157,11 @@
 
                 // Filter dropdown
                 this.filterSelect = document.createElement('select');
-                this.filterSelect.style.padding = '8px 12px';
-                this.filterSelect.style.borderRadius = '5px';
-                this.filterSelect.style.border = '1px solid #44475a';
-                this.filterSelect.style.backgroundColor = '#3e4451';
-                this.filterSelect.style.color = '#abb2bf';
+                this.filterSelect.style.padding = '6px';
+                this.filterSelect.style.borderRadius = '4px';
+                this.filterSelect.style.border = '1px solid #555';
+                this.filterSelect.style.backgroundColor = '#2c2c2c';
+                this.filterSelect.style.color = '#dcdcdc';
                 const options = [
                     { value: 'all', text: 'All' },
                     { value: 'LOG', text: 'Logs' },
@@ -167,60 +177,63 @@
                 this.filterSelect.addEventListener('change', () => this.applyFilters());
                 controlsBar.appendChild(this.filterSelect);
 
-                 // Search bar
+                // Search bar
                 this.searchInput = document.createElement('input');
                 this.searchInput.type = 'text';
                 this.searchInput.placeholder = 'Search...';
-                this.searchInput.style.padding = '8px';
-                this.searchInput.style.borderRadius = '5px';
-                this.searchInput.style.border = '1px solid #44475a';
-                this.searchInput.style.backgroundColor = '#3e4451';
-                this.searchInput.style.color = '#abb2bf';
+                this.searchInput.style.flex = '1';
+                this.searchInput.style.padding = '6px';
+                this.searchInput.style.borderRadius = '4px';
+                this.searchInput.style.border = '1px solid #555';
+                this.searchInput.style.backgroundColor = '#2c2c2c';
+                this.searchInput.style.color = '#dcdcdc';
                 this.searchInput.addEventListener('input', () => this.applyFilters());
-                controlsBar.appendChild(this.searchInput);
 
-
-                // Export buttons with modern styling
-                const exportButtonStyle = `
-                    padding: 8px 16px;
-                    border: none;
-                    border-radius: 5px;
-                    background-color: #61afef; /* Blue-ish */
-                    color: #fff;
-                    cursor: pointer;
-                    transition: background-color 0.2s;
-                `;
-
+                // Export buttons
                 const exportTxtButton = document.createElement('button');
                 exportTxtButton.innerText = 'Export TXT';
-                exportTxtButton.style.cssText = exportButtonStyle;
+                exportTxtButton.style.padding = '6px 12px';
+                exportTxtButton.style.border = 'none';
+                exportTxtButton.style.borderRadius = '4px';
+                exportTxtButton.style.backgroundColor = '#27ae60';
+                exportTxtButton.style.color = '#fff';
+                exportTxtButton.style.cursor = 'pointer';
+                exportTxtButton.style.transition = 'background-color 0.2s';
                 exportTxtButton.addEventListener('mouseover', () => {
-                    exportTxtButton.style.backgroundColor = '#98c379';
+                    exportTxtButton.style.backgroundColor = '#2ecc71';
                 });
                 exportTxtButton.addEventListener('mouseout', () => {
-                    exportTxtButton.style.backgroundColor = '#61afef';
+                    exportTxtButton.style.backgroundColor = '#27ae60';
                 });
                 exportTxtButton.addEventListener('click', () => this.exportLogsTxt());
-                controlsBar.appendChild(exportTxtButton);
 
                 const exportJsonButton = document.createElement('button');
                 exportJsonButton.innerText = 'Export JSON';
-                exportJsonButton.style.cssText = exportButtonStyle;
+                exportJsonButton.style.padding = '6px 12px';
+                exportJsonButton.style.border = 'none';
+                exportJsonButton.style.borderRadius = '4px';
+                exportJsonButton.style.backgroundColor = '#27ae60';
+                exportJsonButton.style.color = '#fff';
+                exportJsonButton.style.cursor = 'pointer';
+                exportJsonButton.style.transition = 'background-color 0.2s';
                 exportJsonButton.addEventListener('mouseover', () => {
-                    exportJsonButton.style.backgroundColor = '#98c379';
+                    exportJsonButton.style.backgroundColor = '#2ecc71';
                 });
                 exportJsonButton.addEventListener('mouseout', () => {
-                    exportJsonButton.style.backgroundColor = '#61afef';
+                    exportJsonButton.style.backgroundColor = '#27ae60';
                 });
                 exportJsonButton.addEventListener('click', () => this.exportLogsJson());
-                controlsBar.appendChild(exportJsonButton);
 
+                controlsBar.appendChild(this.filterSelect);
+                controlsBar.appendChild(this.searchInput);
+                controlsBar.appendChild(exportTxtButton);
+                controlsBar.appendChild(exportJsonButton);
                 this.popup.appendChild(controlsBar);
 
                 // Logs container
                 this.popupContent = document.createElement('div');
                 this.popupContent.style.overflowY = 'auto';
-                this.popupContent.style.maxHeight = 'calc(100% - 100px)'; // Adjusted height
+                this.popupContent.style.height = 'calc(100% - 80px)';
                 this.popupContent.style.paddingRight = '10px';
                 this.popup.appendChild(this.popupContent);
 
@@ -246,16 +259,19 @@
             this.addLog('LOG', 'Custom Log', args.MESSAGE);
         }
 
+        isOnline() {
+           return navigator.onLine;
+        }
+
         addLog(type, title, description) {
             const timestamp = new Date().toISOString();
             const logEntry = document.createElement('div');
             logEntry.style.padding = '12px';
             logEntry.style.marginBottom = '12px';
-            logEntry.style.borderRadius = '5px';
-            logEntry.style.backgroundColor = '#3e4451'; // Darker log entry background
+            logEntry.style.borderRadius = '4px';
+            logEntry.style.backgroundColor = '#2c2c2c';
             logEntry.style.borderLeft = `4px solid ${this.getLogColor(type)}`;
             logEntry.dataset.type = type;
-            logEntry.style.wordBreak = 'break-word'; // Prevent overflow
 
             const headerDiv = document.createElement('div');
             headerDiv.style.display = 'flex';
@@ -267,14 +283,14 @@
             headerLeft.style.display = 'flex';
             headerLeft.style.alignItems = 'center';
 
-            const logTypeSpan = document.createElement('span');
-            logTypeSpan.style.fontWeight = 'bold';
-            logTypeSpan.style.color = this.getLogColor(type);
-            logTypeSpan.innerText = `[${type}]`;
-            headerLeft.appendChild(logTypeSpan);
+            const logType = document.createElement('span');
+            logType.style.fontWeight = 'bold';
+            logType.style.color = this.getLogColor(type);
+            logType.innerText = `[${type}]`;
+            headerLeft.appendChild(logType);
 
             const logTime = document.createElement('span');
-            logTime.style.color = '#6b7280'; // Muted timestamp color
+            logTime.style.color = '#aaa';
             logTime.style.fontSize = '12px';
             logTime.style.marginLeft = '10px';
             logTime.innerText = ` [${timestamp}]`;
@@ -282,35 +298,36 @@
 
             const logTitle = document.createElement('span');
             logTitle.style.marginLeft = '10px';
+            // Set title text color explicitly to white
             logTitle.style.color = '#fff';
             logTitle.innerText = title;
             headerLeft.appendChild(logTitle);
 
             headerDiv.appendChild(headerLeft);
 
-            // Copy button (optional, can be removed for cleaner look)
+            // Copy button
             const copyButton = document.createElement('button');
             copyButton.innerText = 'Copy';
             copyButton.style.fontSize = '12px';
             copyButton.style.padding = '4px 8px';
             copyButton.style.border = 'none';
             copyButton.style.borderRadius = '4px';
-            copyButton.style.backgroundColor = '#5c6370'; // Darker button
-            copyButton.style.color = '#abb2bf';
+            copyButton.style.backgroundColor = '#2980b9';
+            copyButton.style.color = '#fff';
             copyButton.style.cursor = 'pointer';
             copyButton.style.transition = 'background-color 0.2s';
             copyButton.addEventListener('mouseover', () => {
-                copyButton.style.backgroundColor = '#6b7280';
+                copyButton.style.backgroundColor = '#3498db';
             });
             copyButton.addEventListener('mouseout', () => {
-                copyButton.style.backgroundColor = '#5c6370';
+                copyButton.style.backgroundColor = '#2980b9';
             });
             copyButton.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const textToCopy = `[${type}] ${title}\n${description}`;
                 navigator.clipboard.writeText(textToCopy);
             });
-             headerDiv.appendChild(copyButton);
+            headerDiv.appendChild(copyButton);
 
             logEntry.appendChild(headerDiv);
 
@@ -320,7 +337,7 @@
                 contentDiv.style.marginTop = '8px';
                 contentDiv.style.paddingLeft = '20px';
                 contentDiv.style.display = 'none';
-                contentDiv.style.color = '#9ca3af'; // Muted description color
+                contentDiv.style.color = '#ccc';
                 contentDiv.innerText = description;
                 logEntry.appendChild(contentDiv);
 
@@ -331,19 +348,20 @@
 
             this.popupContent.appendChild(logEntry);
             this.logs.push({ type, title, description, timestamp });
+            this.popupContent.scrollTop = this.popupContent.scrollHeight;
             this.applyFilters();
         }
 
         getLogColor(type) {
             switch (type) {
                 case 'LOG':
-                    return '#61afef';
+                    return '#3498db';
                 case 'WARNING':
-                    return '#d19a66';
+                    return '#f39c12';
                 case 'ERROR':
-                    return '#e06c75';
+                    return '#e74c3c';
                 default:
-                    return '#98c379';
+                    return '#dcdcdc';
             }
         }
 
