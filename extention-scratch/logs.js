@@ -8,9 +8,9 @@
             this.popupContent = null;
             this.filterSelect = null;
             this.searchInput = null;
-            this.theme = 'dark'; // Default theme
-            this.selectedLogs = new Set(); // Store selected log indices
-            this.searchHistory = []; // Store search history
+            this.theme = 'dark';
+            this.searchHistory = [];
+            this.isSearchHistoryVisible = false;
         }
 
         getInfo() {
@@ -28,14 +28,8 @@
                         blockType: Scratch.BlockType.COMMAND,
                         text: 'Log [TITLE] [DESCRIPTION]',
                         arguments: {
-                            TITLE: {
-                                type: Scratch.ArgumentType.STRING,
-                                defaultValue: 'Log Title'
-                            },
-                            DESCRIPTION: {
-                                type: Scratch.ArgumentType.STRING,
-                                defaultValue: 'Log Description'
-                            }
+                            TITLE: { type: Scratch.ArgumentType.STRING, defaultValue: 'Log Title' },
+                            DESCRIPTION: { type: Scratch.ArgumentType.STRING, defaultValue: 'Log Description' }
                         }
                     },
                     {
@@ -43,14 +37,8 @@
                         blockType: Scratch.BlockType.COMMAND,
                         text: 'Warn [TITLE] [DESCRIPTION]',
                         arguments: {
-                            TITLE: {
-                                type: Scratch.ArgumentType.STRING,
-                                defaultValue: 'Warning Title'
-                            },
-                            DESCRIPTION: {
-                                type: Scratch.ArgumentType.STRING,
-                                defaultValue: 'Warning Description'
-                            }
+                            TITLE: { type: Scratch.ArgumentType.STRING, defaultValue: 'Warning Title' },
+                            DESCRIPTION: { type: Scratch.ArgumentType.STRING, defaultValue: 'Warning Description' }
                         }
                     },
                     {
@@ -58,14 +46,8 @@
                         blockType: Scratch.BlockType.COMMAND,
                         text: 'Error [TITLE] [DESCRIPTION]',
                         arguments: {
-                            TITLE: {
-                                type: Scratch.ArgumentType.STRING,
-                                defaultValue: 'Error Title'
-                            },
-                            DESCRIPTION: {
-                                type: Scratch.ArgumentType.STRING,
-                                defaultValue: 'Error Description'
-                            }
+                            TITLE: { type: Scratch.ArgumentType.STRING, defaultValue: 'Error Title' },
+                            DESCRIPTION: { type: Scratch.ArgumentType.STRING, defaultValue: 'Error Description' }
                         }
                     },
                     {
@@ -94,7 +76,6 @@
 
         showLogs() {
             if (!this.popup) {
-                // Create main popup container with a style inspired by Lunar Unity Console v1.8.1
                 this.popup = document.createElement('div');
                 this.popup.style.position = 'fixed';
                 this.popup.style.top = '50%';
@@ -103,14 +84,13 @@
                 this.popup.style.width = '85%';
                 this.popup.style.maxWidth = '900px';
                 this.popup.style.height = '80%';
-                this.applyTheme(); // Apply initial theme
+                this.applyTheme();
                 this.popup.style.zIndex = '9999';
                 this.popup.style.padding = '20px';
                 this.popup.style.overflow = 'hidden';
                 this.popup.style.display = 'none';
                 this.popup.style.fontFamily = '"Roboto Mono", Consolas, monospace';
 
-                // Close button: repositioned closer to the edge
                 const closeButton = document.createElement('span');
                 closeButton.innerHTML = '&times;';
                 closeButton.style.position = 'absolute';
@@ -119,26 +99,18 @@
                 closeButton.style.fontSize = '28px';
                 closeButton.style.color = '#e74c3c';
                 closeButton.style.cursor = 'pointer';
-                closeButton.style.transition = 'color 0.2s';
-                closeButton.addEventListener('mouseover', () => {
-                    closeButton.style.color = '#ff6b6b';
-                });
-                closeButton.addEventListener('mouseout', () => {
-                    closeButton.style.color = '#e74c3c';
-                });
                 closeButton.addEventListener('click', () => {
                     this.popup.style.display = 'none';
+                    this.hideSearchHistory(); // Hide search history when closing
                 });
                 this.popup.appendChild(closeButton);
 
-                // Control bar: filter, search, and export buttons
                 const controlsBar = document.createElement('div');
                 controlsBar.style.marginBottom = '15px';
                 controlsBar.style.display = 'flex';
                 controlsBar.style.alignItems = 'center';
                 controlsBar.style.gap = '10px';
 
-                // Theme selection dropdown
                 const themeSelect = document.createElement('select');
                 themeSelect.style.padding = '6px';
                 themeSelect.style.borderRadius = '4px';
@@ -163,7 +135,6 @@
                 });
                 controlsBar.appendChild(themeSelect);
 
-                // Filter dropdown
                 this.filterSelect = document.createElement('select');
                 this.filterSelect.style.padding = '6px';
                 this.filterSelect.style.borderRadius = '4px';
@@ -185,7 +156,9 @@
                 this.filterSelect.addEventListener('change', () => this.applyFilters());
                 controlsBar.appendChild(this.filterSelect);
 
-                // Search bar with history
+                const searchContainer = document.createElement('div');
+                searchContainer.style.position = 'relative'; // For positioning history
+
                 this.searchInput = document.createElement('input');
                 this.searchInput.type = 'text';
                 this.searchInput.placeholder = 'Search...';
@@ -196,12 +169,28 @@
                 this.searchInput.style.backgroundColor = '#2c2c2c';
                 this.searchInput.style.color = '#dcdcdc';
                 this.searchInput.addEventListener('input', () => this.applyFilters());
-                 this.searchInput.addEventListener('focus', () => {
-                    this.showSearchHistory();
-                });
-                controlsBar.appendChild(this.searchInput);
+                this.searchInput.addEventListener('focus', () => this.showSearchHistory());
+                this.searchInput.addEventListener('blur', () => setTimeout(() => this.hideSearchHistory(), 100)); // Delay to allow click
+                searchContainer.appendChild(this.searchInput);
 
-                 const regexCheckbox = document.createElement('input');
+                this.searchHistoryList = document.createElement('ul');
+                this.searchHistoryList.style.position = 'absolute';
+                this.searchHistoryList.style.top = '100%';
+                this.searchHistoryList.style.left = '0';
+                this.searchHistoryList.style.width = '100%';
+                this.searchHistoryList.style.listStyleType = 'none';
+                this.searchHistoryList.style.padding = '0';
+                this.searchHistoryList.style.margin = '0';
+                this.searchHistoryList.style.backgroundColor = '#333';
+                this.searchHistoryList.style.color = '#fff';
+                this.searchHistoryList.style.borderRadius = '4px';
+                this.searchHistoryList.style.border = '1px solid #555';
+                this.searchHistoryList.style.display = 'none'; // Hidden by default
+                searchContainer.appendChild(this.searchHistoryList);
+
+                controlsBar.appendChild(searchContainer);
+
+                const regexCheckbox = document.createElement('input');
                 regexCheckbox.type = 'checkbox';
                 regexCheckbox.id = 'regexCheckbox';
                 const regexLabel = document.createElement('label');
@@ -212,7 +201,6 @@
                 controlsBar.appendChild(regexCheckbox);
                 controlsBar.appendChild(regexLabel);
 
-                // Export buttons
                 const exportTxtButton = document.createElement('button');
                 exportTxtButton.innerText = 'Export TXT';
                 exportTxtButton.style.padding = '6px 12px';
@@ -221,13 +209,6 @@
                 exportTxtButton.style.backgroundColor = '#27ae60';
                 exportTxtButton.style.color = '#fff';
                 exportTxtButton.style.cursor = 'pointer';
-                exportTxtButton.style.transition = 'background-color 0.2s';
-                exportTxtButton.addEventListener('mouseover', () => {
-                    exportTxtButton.style.backgroundColor = '#2ecc71';
-                });
-                exportTxtButton.addEventListener('mouseout', () => {
-                    exportTxtButton.style.backgroundColor = '#27ae60';
-                });
                 exportTxtButton.addEventListener('click', () => this.exportLogsTxt());
 
                 const exportJsonButton = document.createElement('button');
@@ -238,13 +219,6 @@
                 exportJsonButton.style.backgroundColor = '#27ae60';
                 exportJsonButton.style.color = '#fff';
                 exportJsonButton.style.cursor = 'pointer';
-                exportJsonButton.style.transition = 'background-color 0.2s';
-                exportJsonButton.addEventListener('mouseover', () => {
-                    exportJsonButton.style.backgroundColor = '#2ecc71';
-                });
-                exportJsonButton.addEventListener('mouseout', () => {
-                    exportJsonButton.style.backgroundColor = '#27ae60';
-                });
                 exportJsonButton.addEventListener('click', () => this.exportLogsJson());
 
                 controlsBar.appendChild(exportTxtButton);
@@ -252,7 +226,6 @@
 
                 this.popup.appendChild(controlsBar);
 
-                // Logs container
                 this.popupContent = document.createElement('div');
                 this.popupContent.style.overflowY = 'auto';
                 this.popupContent.style.height = 'calc(100% - 80px)';
@@ -283,7 +256,7 @@
             logEntry.style.padding = '12px';
             logEntry.style.marginBottom = '12px';
             logEntry.style.borderRadius = '4px';
-            this.applyThemeToLogEntry(logEntry); // Apply theme to log entry
+            this.applyThemeToLogEntry(logEntry);
             logEntry.style.borderLeft = `4px solid ${this.getLogColor(type)}`;
             logEntry.dataset.type = type;
 
@@ -318,7 +291,6 @@
 
             headerDiv.appendChild(headerLeft);
 
-            // Copy button
             const copyButton = document.createElement('button');
             copyButton.innerText = 'Copy';
             copyButton.style.fontSize = '12px';
@@ -328,13 +300,6 @@
             copyButton.style.backgroundColor = '#2980b9';
             copyButton.style.color = '#fff';
             copyButton.style.cursor = 'pointer';
-            copyButton.style.transition = 'background-color 0.2s';
-            copyButton.addEventListener('mouseover', () => {
-                copyButton.style.backgroundColor = '#3498db';
-            });
-            copyButton.addEventListener('mouseout', () => {
-                copyButton.style.backgroundColor = '#2980b9';
-            });
             copyButton.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const textToCopy = `[${type}] ${title}\n${description}`;
@@ -365,63 +330,35 @@
         }
 
         applyTheme() {
-            switch (this.theme) {
-                case 'dark':
-                    this.popup.style.backgroundColor = '#222';
-                    this.popup.style.color = '#eee';
-                    break;
-                case 'light':
-                    this.popup.style.backgroundColor = '#eee';
-                    this.popup.style.color = '#222';
-                    break;
-                case 'highContrast':
-                    this.popup.style.backgroundColor = '#000';
-                    this.popup.style.color = '#ff0';
-                    break;
-            }
+            const bgColor = this.theme === 'dark' ? '#222' : this.theme === 'light' ? '#eee' : '#000';
+            const textColor = this.theme === 'dark' ? '#eee' : this.theme === 'light' ? '#222' : '#ff0';
 
-             Array.from(this.popupContent.children).forEach(logEntry => {
-                this.applyThemeToLogEntry(logEntry);
-            });
+            this.popup.style.backgroundColor = bgColor;
+            this.popup.style.color = textColor;
+
+            if (this.popupContent) {
+                Array.from(this.popupContent.children).forEach(logEntry => {
+                    this.applyThemeToLogEntry(logEntry);
+                });
+            }
         }
 
         applyThemeToLogEntry(logEntry) {
-            switch (this.theme) {
-                case 'dark':
-                    logEntry.style.backgroundColor = '#333';
-                    break;
-                case 'light':
-                    logEntry.style.backgroundColor = '#ddd';
-                    break;
-                case 'highContrast':
-                    logEntry.style.backgroundColor = '#111';
-                    break;
-            }
+            const bgColor = this.theme === 'dark' ? '#333' : this.theme === 'light' ? '#ddd' : '#111';
+            logEntry.style.backgroundColor = bgColor;
+            logEntry.style.color = this.getTextColor();
         }
 
         getTextColor() {
-            switch (this.theme) {
-                case 'dark':
-                    return '#eee';
-                case 'light':
-                    return '#222';
-                case 'highContrast':
-                    return '#ff0';
-                default:
-                    return '#eee';
-            }
+            return this.theme === 'dark' ? '#eee' : this.theme === 'light' ? '#222' : '#ff0';
         }
 
         getLogColor(type) {
             switch (type) {
-                case 'LOG':
-                    return '#3498db';
-                case 'WARNING':
-                    return '#f39c12';
-                case 'ERROR':
-                    return '#e74c3c';
-                default:
-                    return '#dcdcdc';
+                case 'LOG': return '#3498db';
+                case 'WARNING': return '#f39c12';
+                case 'ERROR': return '#e74c3c';
+                default: return '#dcdcdc';
             }
         }
 
@@ -433,6 +370,7 @@
         closeLogs() {
             if (this.popup) {
                 this.popup.style.display = 'none';
+                this.hideSearchHistory();
             }
         }
 
@@ -453,12 +391,9 @@
             const element = document.createElement('a');
             element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(content));
             element.setAttribute('download', filename);
-
             element.style.display = 'none';
             document.body.appendChild(element);
-
             element.click();
-
             document.body.removeChild(element);
         }
 
@@ -491,30 +426,46 @@
                 }
 
                 const typeMatch = filterValue === 'all' || logType === filterValue;
-
-                if (typeMatch && searchMatch) {
-                    logEntry.style.display = 'block';
-                } else {
-                    logEntry.style.display = 'none';
-                }
+                logEntry.style.display = (typeMatch && searchMatch) ? 'block' : 'none';
             });
         }
 
-         addSearchTermToHistory(term) {
+        addSearchTermToHistory(term) {
             if (!this.searchHistory.includes(term)) {
                 this.searchHistory.push(term);
                 if (this.searchHistory.length > 10) {
                     this.searchHistory.shift();
                 }
+                this.updateSearchHistoryList();
             }
         }
 
-         showSearchHistory() {
-            // This is a placeholder - implement your search history display here.
-            // For example, create a dropdown or list below the search box.
-            console.log('Search History:', this.searchHistory);
+        showSearchHistory() {
+            this.isSearchHistoryVisible = true;
+            this.updateSearchHistoryList();
+            this.searchHistoryList.style.display = 'block';
+        }
+
+        hideSearchHistory() {
+            this.isSearchHistoryVisible = false;
+            this.searchHistoryList.style.display = 'none';
+        }
+
+        updateSearchHistoryList() {
+            this.searchHistoryList.innerHTML = '';
+            this.searchHistory.forEach(term => {
+                const listItem = document.createElement('li');
+                listItem.style.padding = '5px';
+                listItem.style.cursor = 'pointer';
+                listItem.textContent = term;
+                listItem.addEventListener('click', () => {
+                    this.searchInput.value = term;
+                    this.applyFilters();
+                    this.hideSearchHistory();
+                });
+                this.searchHistoryList.appendChild(listItem);
+            });
         }
     }
-
     Scratch.extensions.register(new LogsExtension());
 }(Scratch));
