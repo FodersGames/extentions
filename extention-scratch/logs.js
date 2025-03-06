@@ -66,11 +66,11 @@
                             }
                         }
                     },
-                    // The new block is defined as a hat (cap) block so that it visually appears with a curved top.
+                    // New cap (control) block.
                     {
                         opcode: 'execLogic',
-                        blockType: Scratch.BlockType.HAT,
-                        text: 'When execute logic [TITLE] as [TYPE] then %c',
+                        blockType: Scratch.BlockType.COMMAND,
+                        text: 'Execute logic [TITLE] as [TYPE] then %c',
                         arguments: {
                             TITLE: {
                                 type: Scratch.ArgumentType.STRING,
@@ -81,6 +81,7 @@
                                 menu: 'logicType',
                                 defaultValue: 'LOG'
                             },
+                            // The %c placeholder creates a substack area (a C-shaped cap block)
                             SUBSTACK: {
                                 type: Scratch.ArgumentType.STACK
                             }
@@ -136,7 +137,7 @@
                 this.popup.style.display = 'none';
                 this.popup.style.fontFamily = '"Roboto Mono", Consolas, monospace';
 
-                // Close button: repositioned closer to the edge
+                // Close button
                 const closeButton = document.createElement('span');
                 closeButton.innerHTML = '&times;';
                 closeButton.style.position = 'absolute';
@@ -264,16 +265,14 @@
             this.addLog('ERROR', args.TITLE, args.DESCRIPTION);
         }
 
-        // New control (cap/hat) block.
-        // This block accepts a substack (nested blocks) and, when triggered,
-        // attempts to convert the substack function into a string.
-        // The resulting string is then sent to the logs console as the description,
-        // using the chosen type (LOG, WARNING, or ERROR) and provided title.
+        // New cap (control) block.
+        // When triggered, it converts its nested substack to a string (if possible)
+        // and logs it using the selected type and provided title.
         execLogic(args) {
             let logicStr = "";
             try {
-                // Attempt to extract the substack's function as a string.
-                // (Due to Scratch VM limitations, this may not produce nicely formatted code.)
+                // Convert the substack callback to string.
+                // (Note: The extracted string may not perfectly represent the original blocks.)
                 logicStr = args.SUBSTACK.toString();
             } catch (e) {
                 logicStr = "[Unable to extract logic]";
