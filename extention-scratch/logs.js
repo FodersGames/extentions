@@ -66,7 +66,6 @@
         }
 
         showLogs() {
-            // Create the popup if it doesn't exist
             if (!this.popup) {
                 this.popup = document.createElement('div');
                 this.popup.style.position = 'fixed';
@@ -76,38 +75,37 @@
                 this.popup.style.width = '80%';
                 this.popup.style.maxWidth = '600px';
                 this.popup.style.height = '70%';
-                this.popup.style.backgroundColor = '#fff';
-                this.popup.style.border = '1px solid #ccc';
-                this.popup.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.2)';
+                this.popup.style.backgroundColor = '#1e1e1e';
+                this.popup.style.color = '#dcdcdc';
+                this.popup.style.border = '1px solid #444';
+                this.popup.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.4)';
                 this.popup.style.zIndex = '9999';
                 this.popup.style.padding = '20px';
                 this.popup.style.overflowY = 'auto';
-                this.popup.style.display = 'none'; // Initially hidden
+                this.popup.style.display = 'none';
 
-                // Close button
                 const closeButton = document.createElement('span');
                 closeButton.innerHTML = '&times;';
                 closeButton.style.position = 'absolute';
                 closeButton.style.top = '10px';
                 closeButton.style.right = '10px';
                 closeButton.style.fontSize = '24px';
+                closeButton.style.color = '#f44336';
                 closeButton.style.cursor = 'pointer';
                 closeButton.addEventListener('click', () => {
-                    this.popup.style.display = 'none'; // Hide the popup when close is clicked
+                    this.popup.style.display = 'none';
                 });
 
-                // Create the content container for logs
                 this.popupContent = document.createElement('div');
-                this.popupContent.style.fontFamily = 'Arial, sans-serif';
-                this.popupContent.style.fontSize = '16px';
+                this.popupContent.style.fontFamily = 'Consolas, monospace';
+                this.popupContent.style.fontSize = '14px';
+                this.popupContent.style.whiteSpace = 'pre-wrap';
 
-                // Add the close button and content to the popup
                 this.popup.appendChild(closeButton);
                 this.popup.appendChild(this.popupContent);
                 document.body.appendChild(this.popup);
             }
 
-            // Show the popup
             this.popup.style.display = 'block';
         }
 
@@ -124,50 +122,58 @@
         }
 
         addLog(type, message) {
+            const timestamp = new Date().toISOString();
             const logEntry = document.createElement('div');
-            logEntry.style.padding = '5px';
+            logEntry.style.padding = '8px';
             logEntry.style.marginBottom = '10px';
-            logEntry.style.borderBottom = '1px solid #eee';
+            logEntry.style.borderBottom = '1px solid #555';
+            logEntry.style.fontFamily = 'Consolas, monospace';
+            logEntry.style.color = '#dcdcdc';
 
             const logType = document.createElement('span');
             logType.style.fontWeight = 'bold';
             logType.style.color = this.getLogColor(type);
             logType.innerText = `[${type}]`;
 
+            const logTime = document.createElement('span');
+            logTime.style.color = '#888';
+            logTime.style.fontSize = '12px';
+            logTime.innerText = ` [${timestamp}]`;
+
             const logMessage = document.createElement('span');
             logMessage.style.marginLeft = '10px';
             logMessage.innerText = message;
 
             logEntry.appendChild(logType);
+            logEntry.appendChild(logTime);
             logEntry.appendChild(logMessage);
             this.popupContent.appendChild(logEntry);
             this.logs.push({ type, message });
 
-            // Auto scroll to bottom to show the latest log
             this.popupContent.scrollTop = this.popupContent.scrollHeight;
         }
 
         getLogColor(type) {
             switch (type) {
                 case 'LOG':
-                    return 'blue';
+                    return '#2196F3';
                 case 'WARNING':
-                    return 'orange';
+                    return '#FF9800';
                 case 'ERROR':
-                    return 'red';
+                    return '#F44336';
                 default:
-                    return 'black';
+                    return '#dcdcdc';
             }
         }
 
         clearLogs() {
             this.logs = [];
-            this.popupContent.innerHTML = ''; // Clear all logs in the popup
+            this.popupContent.innerHTML = '';
         }
 
         closeLogs() {
             if (this.popup) {
-                this.popup.style.display = 'none'; // Hide the popup
+                this.popup.style.display = 'none';
             }
         }
     }
