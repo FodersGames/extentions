@@ -3,7 +3,6 @@
 
     class LogsExtension {
         constructor() {
-            // Store logs as objects { type, title, description, timestamp }
             this.logs = [];
             this.popup = null;
             this.popupContent = null;
@@ -69,12 +68,20 @@
                     {
                         opcode: 'logBlock',
                         blockType: Scratch.BlockType.CONTROL,
-                        text: 'Log Block [LOG_TYPE] [STACK]',
+                        text: 'Log Block [LOG_TYPE] Title: [TITLE] Description: [DESCRIPTION] [STACK]',
                         arguments: {
                             LOG_TYPE: {
                                 type: Scratch.ArgumentType.STRING,
                                 menu: 'logTypes',
                                 defaultValue: 'LOG'
+                            },
+                            TITLE: {
+                                type: Scratch.ArgumentType.STRING,
+                                defaultValue: 'My Block Title'
+                            },
+                            DESCRIPTION: {
+                                type: Scratch.ArgumentType.STRING,
+                                defaultValue: 'Block description'
                             },
                             STACK: {
                                 type: Scratch.ArgumentType.STATEMENT
@@ -177,7 +184,6 @@
                     this.filterSelect.appendChild(optionElem);
                 });
                 this.filterSelect.addEventListener('change', () => this.applyFilters());
-                controlsBar.appendChild(this.filterSelect);
 
                 // Search bar
                 this.searchInput = document.createElement('input');
@@ -190,7 +196,6 @@
                 this.searchInput.style.backgroundColor = '#2c2c2c';
                 this.searchInput.style.color = '#dcdcdc';
                 this.searchInput.addEventListener('input', () => this.applyFilters());
-                controlsBar.appendChild(this.searchInput);
 
                 // Export buttons
                 const exportTxtButton = document.createElement('button');
@@ -209,7 +214,6 @@
                     exportTxtButton.style.backgroundColor = '#27ae60';
                 });
                 exportTxtButton.addEventListener('click', () => this.exportLogsTxt());
-                controlsBar.appendChild(exportTxtButton);
 
                 const exportJsonButton = document.createElement('button');
                 exportJsonButton.innerText = 'Export JSON';
@@ -227,8 +231,11 @@
                     exportJsonButton.style.backgroundColor = '#27ae60';
                 });
                 exportJsonButton.addEventListener('click', () => this.exportLogsJson());
-                controlsBar.appendChild(exportJsonButton);
 
+                controlsBar.appendChild(this.filterSelect);
+                controlsBar.appendChild(this.searchInput);
+                controlsBar.appendChild(exportTxtButton);
+                controlsBar.appendChild(exportJsonButton);
                 this.popup.appendChild(controlsBar);
 
                 // Logs container
@@ -258,16 +265,18 @@
 
         logBlock(args, util) {
             const logType = args.LOG_TYPE;
-            let description = '';
+            const title = args.TITLE;
+            const description = args.DESCRIPTION;
+            let blockDescription = '';
 
             if (util.stackFrame.childBlocks) {
-                description = this.extractBlockInfo(util.stackFrame.childBlocks).join('\n');
+                blockDescription = this.extractBlockInfo(util.stackFrame.childBlocks).join('\n');
             }
 
-            this.addLog(logType, 'Block Execution', description);
+            this.addLog(logType, title, description + '\n' + blockDescription);
         }
 
-        // Helper function to extract information from the blocks in the stack
+
         extractBlockInfo(blocks) {
             const blockInfo = [];
 
