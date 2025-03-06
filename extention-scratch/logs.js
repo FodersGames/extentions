@@ -67,6 +67,26 @@
                         }
                     },
                     {
+                        opcode: 'execLogic',
+                        blockType: Scratch.BlockType.COMMAND,
+                        text: 'Execute logic [TITLE] [LOGIC] as [TYPE]',
+                        arguments: {
+                            TITLE: {
+                                type: Scratch.ArgumentType.STRING,
+                                defaultValue: 'Logic Title'
+                            },
+                            LOGIC: {
+                                type: Scratch.ArgumentType.STRING,
+                                defaultValue: 'console.log("Hello, World!");'
+                            },
+                            TYPE: {
+                                type: Scratch.ArgumentType.STRING,
+                                menu: 'logicType',
+                                defaultValue: 'LOG'
+                            }
+                        }
+                    },
+                    {
                         opcode: 'clearLogs',
                         blockType: Scratch.BlockType.COMMAND,
                         text: 'Clear logs'
@@ -86,13 +106,18 @@
                         blockType: Scratch.BlockType.COMMAND,
                         text: 'Export logs as JSON'
                     }
-                ]
+                ],
+                menus: {
+                    logicType: {
+                        items: ['LOG', 'WARNING', 'ERROR']
+                    }
+                }
             };
         }
 
         showLogs() {
             if (!this.popup) {
-                // Create main popup container with a style inspired by Lunar Unity Console v1.8.1
+                // Create main popup container inspired by Lunar Unity Console v1.8.1
                 this.popup = document.createElement('div');
                 this.popup.style.position = 'fixed';
                 this.popup.style.top = '50%';
@@ -226,6 +251,7 @@
             this.applyFilters();
         }
 
+        // Blocks log, warn, error, and the new execLogic block
         log(args) {
             this.addLog('LOG', args.TITLE, args.DESCRIPTION);
         }
@@ -236,6 +262,11 @@
 
         error(args) {
             this.addLog('ERROR', args.TITLE, args.DESCRIPTION);
+        }
+
+        execLogic(args) {
+            // Send the provided logic (code snippet) as the description using the chosen type.
+            this.addLog(args.TYPE, args.TITLE, args.LOGIC);
         }
 
         addLog(type, title, description) {
@@ -273,7 +304,6 @@
 
             const logTitle = document.createElement('span');
             logTitle.style.marginLeft = '10px';
-            // Set title text color explicitly to white
             logTitle.style.color = '#fff';
             logTitle.innerText = title;
             headerLeft.appendChild(logTitle);
