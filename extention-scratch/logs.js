@@ -68,7 +68,7 @@
                     {
                         opcode: 'logBlock',
                         blockType: Scratch.BlockType.CONTROL,
-                        text: 'Log Block [LOG_TYPE] Title: [TITLE] Description: [DESCRIPTION] [STACK]',
+                        text: 'Log Block [LOG_TYPE] Title: [TITLE] [STACK]',
                         arguments: {
                             LOG_TYPE: {
                                 type: Scratch.ArgumentType.STRING,
@@ -78,10 +78,6 @@
                             TITLE: {
                                 type: Scratch.ArgumentType.STRING,
                                 defaultValue: 'My Block Title'
-                            },
-                            DESCRIPTION: {
-                                type: Scratch.ArgumentType.STRING,
-                                defaultValue: 'Block description'
                             },
                             STACK: {
                                 type: Scratch.ArgumentType.STATEMENT
@@ -266,16 +262,14 @@
         logBlock(args, util) {
             const logType = args.LOG_TYPE;
             const title = args.TITLE;
-            const description = args.DESCRIPTION;
-            let blockDescription = '';
+            let description = '';
 
             if (util.stackFrame.childBlocks) {
-                blockDescription = this.extractBlockInfo(util.stackFrame.childBlocks).join('\n');
+                description = this.extractBlockInfo(util.stackFrame.childBlocks).join('\n');
             }
 
-            this.addLog(logType, title, description + '\n' + blockDescription);
+            this.addLog(logType, title, description);
         }
-
 
         extractBlockInfo(blocks) {
             const blockInfo = [];
@@ -285,9 +279,22 @@
 
                 if (block.fields) {
                     for (const fieldName in block.fields) {
-                        blockText += ` ${fieldName}: ${block.fields[fieldName].value}`;
+                        if (block.fields[fieldName].value) {
+                          blockText += ` ${fieldName}: ${block.fields[fieldName].value}`;
+                        } else if (block.fields[fieldName].id) {
+                          // Handle variable and list references
+                          const variableId = block.fields[fieldName].id;
+                          const variable = Scratch.vm.runtime.getVariable(variableId); // Accessing VM runtime
+                            if(variable) {
+                                blockText += ` ${fieldName}: ${variable.name}`;
+                            } else {
+                                blockText += ` ${fieldName}: (unknown variable)`;
+                            }
+
+                        }
                     }
                 }
+
 
                 if (block.inputs) {
                     for (const inputName in block.inputs) {
