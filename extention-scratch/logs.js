@@ -92,40 +92,40 @@
 
         showLogs() {
             if (!this.popup) {
-                // Create main popup container with an improved console design
+                // Create main popup container with a style inspired by Lunar Unity Console v1.8.1
                 this.popup = document.createElement('div');
                 this.popup.style.position = 'fixed';
                 this.popup.style.top = '50%';
                 this.popup.style.left = '50%';
                 this.popup.style.transform = 'translate(-50%, -50%)';
-                this.popup.style.width = '80%';
-                this.popup.style.maxWidth = '800px';
+                this.popup.style.width = '85%';
+                this.popup.style.maxWidth = '900px';
                 this.popup.style.height = '80%';
-                this.popup.style.background = 'linear-gradient(135deg, #2e2e2e, #1e1e1e)';
-                this.popup.style.color = '#dcdcdc';
-                this.popup.style.border = '1px solid #444';
+                this.popup.style.backgroundColor = '#1b1b1b';
+                this.popup.style.border = '1px solid #333';
                 this.popup.style.borderRadius = '8px';
-                this.popup.style.boxShadow = '0 6px 12px rgba(0, 0, 0, 0.6)';
+                this.popup.style.boxShadow = '0 6px 12px rgba(0, 0, 0, 0.7)';
                 this.popup.style.zIndex = '9999';
                 this.popup.style.padding = '20px';
                 this.popup.style.overflow = 'hidden';
                 this.popup.style.display = 'none';
+                this.popup.style.fontFamily = '"Roboto Mono", Consolas, monospace';
 
                 // Close button
                 const closeButton = document.createElement('span');
                 closeButton.innerHTML = '&times;';
                 closeButton.style.position = 'absolute';
-                closeButton.style.top = '10px';
-                closeButton.style.right = '10px';
-                closeButton.style.fontSize = '24px';
-                closeButton.style.color = '#f44336';
+                closeButton.style.top = '15px';
+                closeButton.style.right = '15px';
+                closeButton.style.fontSize = '28px';
+                closeButton.style.color = '#e74c3c';
                 closeButton.style.cursor = 'pointer';
                 closeButton.style.transition = 'color 0.2s';
                 closeButton.addEventListener('mouseover', () => {
-                    closeButton.style.color = '#ff7961';
+                    closeButton.style.color = '#ff6b6b';
                 });
                 closeButton.addEventListener('mouseout', () => {
-                    closeButton.style.color = '#f44336';
+                    closeButton.style.color = '#e74c3c';
                 });
                 closeButton.addEventListener('click', () => {
                     this.popup.style.display = 'none';
@@ -134,16 +134,18 @@
 
                 // Control bar: filter, search, and export buttons
                 const controlsBar = document.createElement('div');
-                controlsBar.style.marginBottom = '10px';
+                controlsBar.style.marginBottom = '15px';
                 controlsBar.style.display = 'flex';
                 controlsBar.style.alignItems = 'center';
                 controlsBar.style.gap = '10px';
 
                 // Filter dropdown
                 this.filterSelect = document.createElement('select');
-                this.filterSelect.style.padding = '5px';
+                this.filterSelect.style.padding = '6px';
                 this.filterSelect.style.borderRadius = '4px';
                 this.filterSelect.style.border = '1px solid #555';
+                this.filterSelect.style.backgroundColor = '#2c2c2c';
+                this.filterSelect.style.color = '#dcdcdc';
                 const options = [
                     { value: 'all', text: 'All' },
                     { value: 'LOG', text: 'Logs' },
@@ -163,43 +165,45 @@
                 this.searchInput.type = 'text';
                 this.searchInput.placeholder = 'Search...';
                 this.searchInput.style.flex = '1';
-                this.searchInput.style.padding = '5px';
+                this.searchInput.style.padding = '6px';
                 this.searchInput.style.borderRadius = '4px';
                 this.searchInput.style.border = '1px solid #555';
+                this.searchInput.style.backgroundColor = '#2c2c2c';
+                this.searchInput.style.color = '#dcdcdc';
                 this.searchInput.addEventListener('input', () => this.applyFilters());
 
                 // Export buttons
                 const exportTxtButton = document.createElement('button');
                 exportTxtButton.innerText = 'Export TXT';
-                exportTxtButton.style.padding = '5px 10px';
+                exportTxtButton.style.padding = '6px 12px';
                 exportTxtButton.style.border = 'none';
                 exportTxtButton.style.borderRadius = '4px';
-                exportTxtButton.style.backgroundColor = '#4caf50';
+                exportTxtButton.style.backgroundColor = '#27ae60';
                 exportTxtButton.style.color = '#fff';
                 exportTxtButton.style.cursor = 'pointer';
                 exportTxtButton.style.transition = 'background-color 0.2s';
                 exportTxtButton.addEventListener('mouseover', () => {
-                    exportTxtButton.style.backgroundColor = '#66bb6a';
+                    exportTxtButton.style.backgroundColor = '#2ecc71';
                 });
                 exportTxtButton.addEventListener('mouseout', () => {
-                    exportTxtButton.style.backgroundColor = '#4caf50';
+                    exportTxtButton.style.backgroundColor = '#27ae60';
                 });
                 exportTxtButton.addEventListener('click', () => this.exportLogsTxt());
 
                 const exportJsonButton = document.createElement('button');
                 exportJsonButton.innerText = 'Export JSON';
-                exportJsonButton.style.padding = '5px 10px';
+                exportJsonButton.style.padding = '6px 12px';
                 exportJsonButton.style.border = 'none';
                 exportJsonButton.style.borderRadius = '4px';
-                exportJsonButton.style.backgroundColor = '#4caf50';
+                exportJsonButton.style.backgroundColor = '#27ae60';
                 exportJsonButton.style.color = '#fff';
                 exportJsonButton.style.cursor = 'pointer';
                 exportJsonButton.style.transition = 'background-color 0.2s';
                 exportJsonButton.addEventListener('mouseover', () => {
-                    exportJsonButton.style.backgroundColor = '#66bb6a';
+                    exportJsonButton.style.backgroundColor = '#2ecc71';
                 });
                 exportJsonButton.addEventListener('mouseout', () => {
-                    exportJsonButton.style.backgroundColor = '#4caf50';
+                    exportJsonButton.style.backgroundColor = '#27ae60';
                 });
                 exportJsonButton.addEventListener('click', () => this.exportLogsJson());
 
@@ -211,11 +215,9 @@
 
                 // Logs container
                 this.popupContent = document.createElement('div');
-                this.popupContent.style.fontFamily = 'Consolas, monospace';
-                this.popupContent.style.fontSize = '14px';
-                this.popupContent.style.whiteSpace = 'pre-wrap';
                 this.popupContent.style.overflowY = 'auto';
-                this.popupContent.style.height = 'calc(100% - 60px)';
+                this.popupContent.style.height = 'calc(100% - 80px)';
+                this.popupContent.style.paddingRight = '10px';
                 this.popup.appendChild(this.popupContent);
 
                 document.body.appendChild(this.popup);
@@ -224,7 +226,6 @@
             this.applyFilters();
         }
 
-        // Blocks log, warn, and error modified to receive TITLE and DESCRIPTION
         log(args) {
             this.addLog('LOG', args.TITLE, args.DESCRIPTION);
         }
@@ -239,22 +240,20 @@
 
         addLog(type, title, description) {
             const timestamp = new Date().toISOString();
-            // Log entry container
             const logEntry = document.createElement('div');
-            logEntry.style.padding = '10px';
-            logEntry.style.marginBottom = '10px';
-            logEntry.style.border = '1px solid #555';
+            logEntry.style.padding = '12px';
+            logEntry.style.marginBottom = '12px';
             logEntry.style.borderRadius = '4px';
-            logEntry.style.backgroundColor = '#262626';
-            logEntry.dataset.type = type; // for filtering
+            logEntry.style.backgroundColor = '#2c2c2c';
+            logEntry.style.borderLeft = `4px solid ${this.getLogColor(type)}`;
+            logEntry.dataset.type = type;
 
-            // Log header
             const headerDiv = document.createElement('div');
             headerDiv.style.display = 'flex';
             headerDiv.style.justifyContent = 'space-between';
+            headerDiv.style.alignItems = 'center';
             headerDiv.style.cursor = description && description.trim() !== '' ? 'pointer' : 'default';
 
-            // Left part: type, timestamp, and title
             const headerLeft = document.createElement('div');
             headerLeft.style.display = 'flex';
             headerLeft.style.alignItems = 'center';
@@ -266,9 +265,9 @@
             headerLeft.appendChild(logType);
 
             const logTime = document.createElement('span');
-            logTime.style.color = '#888';
+            logTime.style.color = '#aaa';
             logTime.style.fontSize = '12px';
-            logTime.style.marginLeft = '8px';
+            logTime.style.marginLeft = '10px';
             logTime.innerText = ` [${timestamp}]`;
             headerLeft.appendChild(logTime);
 
@@ -279,22 +278,22 @@
 
             headerDiv.appendChild(headerLeft);
 
-            // Copy button with improved style
+            // Copy button
             const copyButton = document.createElement('button');
             copyButton.innerText = 'Copy';
             copyButton.style.fontSize = '12px';
-            copyButton.style.padding = '3px 6px';
+            copyButton.style.padding = '4px 8px';
             copyButton.style.border = 'none';
             copyButton.style.borderRadius = '4px';
-            copyButton.style.backgroundColor = '#2196F3';
+            copyButton.style.backgroundColor = '#2980b9';
             copyButton.style.color = '#fff';
             copyButton.style.cursor = 'pointer';
             copyButton.style.transition = 'background-color 0.2s';
             copyButton.addEventListener('mouseover', () => {
-                copyButton.style.backgroundColor = '#64b5f6';
+                copyButton.style.backgroundColor = '#3498db';
             });
             copyButton.addEventListener('mouseout', () => {
-                copyButton.style.backgroundColor = '#2196F3';
+                copyButton.style.backgroundColor = '#2980b9';
             });
             copyButton.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -302,26 +301,25 @@
                 navigator.clipboard.writeText(textToCopy);
             });
             headerDiv.appendChild(copyButton);
+
             logEntry.appendChild(headerDiv);
 
-            // Collapsible description area (if provided)
             let contentDiv = null;
             if (description && description.trim() !== '') {
                 contentDiv = document.createElement('div');
-                contentDiv.style.marginTop = '5px';
+                contentDiv.style.marginTop = '8px';
                 contentDiv.style.paddingLeft = '20px';
                 contentDiv.style.display = 'none';
+                contentDiv.style.color = '#ccc';
                 contentDiv.innerText = description;
                 logEntry.appendChild(contentDiv);
 
-                // Toggle description on header click
                 headerDiv.addEventListener('click', () => {
                     contentDiv.style.display = contentDiv.style.display === 'none' ? 'block' : 'none';
                 });
             }
 
             this.popupContent.appendChild(logEntry);
-            // Save log for export
             this.logs.push({ type, title, description, timestamp });
             this.popupContent.scrollTop = this.popupContent.scrollHeight;
             this.applyFilters();
@@ -330,11 +328,11 @@
         getLogColor(type) {
             switch (type) {
                 case 'LOG':
-                    return '#2196F3';
+                    return '#3498db';
                 case 'WARNING':
-                    return '#FF9800';
+                    return '#f39c12';
                 case 'ERROR':
-                    return '#F44336';
+                    return '#e74c3c';
                 default:
                     return '#dcdcdc';
             }
@@ -375,12 +373,9 @@
         applyFilters() {
             const filterValue = this.filterSelect.value;
             const searchValue = this.searchInput.value.toLowerCase();
-
             Array.from(this.popupContent.children).forEach(logEntry => {
                 const logType = logEntry.dataset.type;
-                // Filter by type
                 const matchesFilter = filterValue === 'all' || filterValue === logType;
-                // Search in the entire text (title and description)
                 const textContent = logEntry.innerText.toLowerCase();
                 const matchesSearch = textContent.indexOf(searchValue) !== -1;
                 logEntry.style.display = matchesFilter && matchesSearch ? '' : 'none';
@@ -389,5 +384,4 @@
     }
 
     Scratch.extensions.register(new LogsExtension());
-
 })(Scratch);
