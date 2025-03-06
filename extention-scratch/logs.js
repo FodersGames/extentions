@@ -66,9 +66,9 @@
                         }
                     },
                     {
-                        opcode: 'logBlock',
+                        opcode: 'logRepeat',
                         blockType: Scratch.BlockType.CONTROL,
-                        text: 'Log Block [LOG_TYPE] Title: [TITLE] [STACK]',
+                        text: 'Log Repeat [LOG_TYPE] Title: [TITLE] [TIMES] [STACK]',
                         arguments: {
                             LOG_TYPE: {
                                 type: Scratch.ArgumentType.STRING,
@@ -78,6 +78,10 @@
                             TITLE: {
                                 type: Scratch.ArgumentType.STRING,
                                 defaultValue: 'My Block Title'
+                            },
+                            TIMES: {
+                                type: Scratch.ArgumentType.NUMBER,
+                                defaultValue: '1'
                             },
                             STACK: {
                                 type: Scratch.ArgumentType.STATEMENT
@@ -259,63 +263,55 @@
             this.addLog('ERROR', args.TITLE, args.DESCRIPTION);
         }
 
-        logBlock(args, util) {
+        logRepeat(args, util) {
             const logType = args.LOG_TYPE;
             const title = args.TITLE;
-            let description = '';
+            const times = Math.floor(Scratch.Cast.toNumber(args.TIMES)); // Ensure integer
+            if (times <= 0) return; // Don't repeat zero or negative times
 
-            if (util.stackFrame.childBlocks) {
-                description = this.extractBlockInfo(util.stackFrame.childBlocks).join('\n');
+            for (let i = 0; i < times; i++) {
+                // Execute the stack of blocks within the loop
+                if (util.stackFrame.childBlocks) {
+                    // Extract block info from the blocks in the stack and add the log
+                     this.extractBlockInfo(util.stackFrame.childBlocks)
+                }
+
+                this.addLog(logType, title, `Repetition ${i + 1}`);
+                Scratch.vm.runtime.startHats(
+                    'control_start',
+                    {
+                        SOURCE_BLOCK: util.stackFrame.parentKey
+                    },
+                    util.target
+                );
+
             }
-
-            this.addLog(logType, title, description);
         }
 
+
         extractBlockInfo(blocks) {
-            const blockInfo = [];
-
             for (const block of blocks) {
-                let blockText = block.opcode;
-
-                if (block.fields) {
-                    for (const fieldName in block.fields) {
-                        if (block.fields[fieldName].value) {
-                          blockText += ` ${fieldName}: ${block.fields[fieldName].value}`;
-                        } else if (block.fields[fieldName].id) {
-                          // Handle variable and list references
-                          const variableId = block.fields[fieldName].id;
-                          const variable = Scratch.vm.runtime.getVariable(variableId); // Accessing VM runtime
-                            if(variable) {
-                                blockText += ` ${fieldName}: ${variable.name}`;
-                            } else {
-                                blockText += ` ${fieldName}: (unknown variable)`;
-                            }
-
-                        }
+                if (block.opcode === 'motion_movesteps') {
+                    // Example for "move steps" block
+                    const steps = Scratch.Cast.toNumber(block.inputs.STEPS.shadow.fields.NUM.value);
+                    console.log('move steps ' + steps)
+                    // return steps;
+                } else if (block.opcode === 'control_if') {
+                    // Example for "if" block
+                    console.log('if condition');
+                    if (block.inputs.CONDITION.block) {
+                        // this.extractBlockInfo([block.inputs.CONDITION.block]); // Condition
+                        // return 'if';
                     }
+                } else if(block.opcode === 'sound_playuntildone'){
+                    console.log('play sound')
                 }
 
-
-                if (block.inputs) {
-                    for (const inputName in block.inputs) {
-                        const input = block.inputs[inputName];
-                        if (input.block) {
-                            blockText += ` ${inputName}: ${input.block.opcode}`;
-                        }
-                    }
-                }
-
-                blockInfo.push(blockText);
-
-                if (block.next) {
-                    const nextBlock = blocks.find(b => b.id === block.next);
-                    if (nextBlock) {
-                        blockInfo.push(...this.extractBlockInfo([nextBlock]));
-                    }
+                if(block.next){
+                    // this.extractBlockInfo([block.next])
                 }
             }
 
-            return blockInfo;
         }
 
         addLog(type, title, description) {
