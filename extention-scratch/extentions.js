@@ -4,8 +4,8 @@
     class AdRewards {
         constructor() {
             this._iframe = null;
-            this._adSuccess = false;
-            this._adFailed = false;
+            this._adSuccess = {};
+            this._adFailed = {};
         }
 
         getInfo() {
@@ -16,11 +16,11 @@
                     {
                         opcode: 'loadAds',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: 'Afficher la pub [AD_ID] pendant [TIME] secondes',
+                        text: 'Afficher la pub avec l\'ID [AD_ID] pendant [TIME] secondes',
                         arguments: {
                             AD_ID: {
                                 type: Scratch.ArgumentType.STRING,
-                                defaultValue: 'ca-app-pub-xxxxxxxxxxxxxxxx'
+                                defaultValue: '1'
                             },
                             TIME: {
                                 type: Scratch.ArgumentType.NUMBER,
@@ -31,12 +31,24 @@
                     {
                         opcode: 'onAdSuccess',
                         blockType: Scratch.BlockType.HAT,
-                        text: 'Quand la pub est terminée avec succès'
+                        text: 'Quand la pub avec l\'ID [AD_ID] est terminée avec succès',
+                        arguments: {
+                            AD_ID: {
+                                type: Scratch.ArgumentType.STRING,
+                                defaultValue: '1'
+                            }
+                        }
                     },
                     {
                         opcode: 'onAdFail',
                         blockType: Scratch.BlockType.HAT,
-                        text: 'Quand la pub échoue'
+                        text: 'Quand la pub avec l\'ID [AD_ID] échoue',
+                        arguments: {
+                            AD_ID: {
+                                type: Scratch.ArgumentType.STRING,
+                                defaultValue: '1'
+                            }
+                        }
                     }
                 ]
             };
@@ -65,17 +77,17 @@
             // Après le temps défini, on cache l'iframe et on gère l'état de la publicité
             setTimeout(() => {
                 this._iframe.style.display = 'none';  // Cache l'iframe après le temps défini
-                this._adSuccess = true;  // L'action est considérée comme réussie
-                this._adFailed = false; // Pub réussie
+                this._adSuccess[args.AD_ID] = true;  // La publicité avec cet ID a été vue avec succès
+                this._adFailed[args.AD_ID] = false;  // La publicité n'a pas échoué
             }, args.TIME * 1000);  // Multiplie le temps par 1000 pour obtenir des millisecondes
         }
 
-        onAdSuccess() {
-            return this._adSuccess;
+        onAdSuccess(args) {
+            return this._adSuccess[args.AD_ID] || false;
         }
 
-        onAdFail() {
-            return this._adFailed;
+        onAdFail(args) {
+            return this._adFailed[args.AD_ID] || false;
         }
     }
 
