@@ -3,15 +3,13 @@
 
     class LogsExtension {
         constructor() {
+            // Store logs as objects { type, title, description, timestamp }
             this.logs = [];
             this.popup = null;
             this.popupContent = null;
             this.filterSelect = null;
             this.searchInput = null;
             this.theme = 'dark';
-            this.searchHistory = [];
-            this.isSearchHistoryVisible = false;
-            this.variableStats = {}; // Store statistics for monitored variables
         }
 
         getInfo() {
@@ -29,8 +27,14 @@
                         blockType: Scratch.BlockType.COMMAND,
                         text: 'Log [TITLE] [DESCRIPTION]',
                         arguments: {
-                            TITLE: { type: Scratch.ArgumentType.STRING, defaultValue: 'Log Title' },
-                            DESCRIPTION: { type: Scratch.ArgumentType.STRING, defaultValue: 'Log Description' }
+                            TITLE: {
+                                type: Scratch.ArgumentType.STRING,
+                                defaultValue: 'Log Title'
+                            },
+                            DESCRIPTION: {
+                                type: Scratch.ArgumentType.STRING,
+                                defaultValue: 'Log Description'
+                            }
                         }
                     },
                     {
@@ -38,8 +42,14 @@
                         blockType: Scratch.BlockType.COMMAND,
                         text: 'Warn [TITLE] [DESCRIPTION]',
                         arguments: {
-                            TITLE: { type: Scratch.ArgumentType.STRING, defaultValue: 'Warning Title' },
-                            DESCRIPTION: { type: Scratch.ArgumentType.STRING, defaultValue: 'Warning Description' }
+                            TITLE: {
+                                type: Scratch.ArgumentType.STRING,
+                                defaultValue: 'Warning Title'
+                            },
+                            DESCRIPTION: {
+                                type: Scratch.ArgumentType.STRING,
+                                defaultValue: 'Warning Description'
+                            }
                         }
                     },
                     {
@@ -47,25 +57,25 @@
                         blockType: Scratch.BlockType.COMMAND,
                         text: 'Error [TITLE] [DESCRIPTION]',
                         arguments: {
-                            TITLE: { type: Scratch.ArgumentType.STRING, defaultValue: 'Error Title' },
-                            DESCRIPTION: { type: Scratch.ArgumentType.STRING, defaultValue: 'Error Description' }
+                            TITLE: {
+                                type: Scratch.ArgumentType.STRING,
+                                defaultValue: 'Error Title'
+                            },
+                            DESCRIPTION: {
+                                type: Scratch.ArgumentType.STRING,
+                                defaultValue: 'Error Description'
+                            }
                         }
                     },
-                    {
-                        opcode: 'conditionalLog',
+                     {
+                        opcode: 'addCustomLog',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: 'Conditional Log If [CONDITION] Then Log [MESSAGE]',
+                        text: 'Add Custom Log [MESSAGE]',
                         arguments: {
-                            CONDITION: { type: Scratch.ArgumentType.BOOLEAN },
-                            MESSAGE: { type: Scratch.ArgumentType.STRING, defaultValue: 'Condition Met!' }
-                        }
-                    },
-                    {
-                        opcode: 'monitorVariable',
-                        blockType: Scratch.BlockType.COMMAND,
-                        text: 'Monitor Variable [VARIABLE]',
-                        arguments: {
-                            VARIABLE: { type: Scratch.ArgumentType.STRING, defaultValue: 'myVariable' }
+                            MESSAGE: {
+                                type: Scratch.ArgumentType.STRING,
+                                defaultValue: 'Custom Log Message'
+                            }
                         }
                     },
                     {
@@ -88,81 +98,60 @@
                         blockType: Scratch.BlockType.COMMAND,
                         text: 'Export logs as JSON'
                     }
-                ],
-                menus: {
-                    logTypes: ['LOG', 'WARNING', 'ERROR'],
-                    iconTypes: ['info', 'warning', 'error'] // Example icon types
-                }
+                ]
             };
         }
 
         showLogs() {
             if (!this.popup) {
+                // Create main popup container
                 this.popup = document.createElement('div');
                 this.popup.style.position = 'fixed';
                 this.popup.style.top = '50%';
                 this.popup.style.left = '50%';
                 this.popup.style.transform = 'translate(-50%, -50%)';
-                this.popup.style.width = '85%';
-                this.popup.style.maxWidth = '900px';
-                this.popup.style.height = '80%';
-                this.applyTheme();
+                this.popup.style.width = '80%';
+                this.popup.style.maxWidth = '800px';
+                this.popup.style.height = '70%';
+                this.popup.style.backgroundColor = '#282c34'; // Dark background
+                this.popup.style.border = '1px solid #44475a'; // Subtle border
+                this.popup.style.borderRadius = '10px'; // Rounded corners
+                this.popup.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.5)'; // Soft shadow
                 this.popup.style.zIndex = '9999';
                 this.popup.style.padding = '20px';
                 this.popup.style.overflow = 'hidden';
                 this.popup.style.display = 'none';
-                this.popup.style.fontFamily = '"Roboto Mono", Consolas, monospace';
+                this.popup.style.fontFamily = 'sans-serif'; // Modern font
+                this.popup.style.color = '#abb2bf'; // Muted text color
 
+                // Close button
                 const closeButton = document.createElement('span');
                 closeButton.innerHTML = '&times;';
                 closeButton.style.position = 'absolute';
                 closeButton.style.top = '10px';
                 closeButton.style.right = '10px';
-                closeButton.style.fontSize = '28px';
-                closeButton.style.color = '#e74c3c';
+                closeButton.style.fontSize = '24px';
+                closeButton.style.color = '#e06c75'; // Reddish close color
                 closeButton.style.cursor = 'pointer';
                 closeButton.addEventListener('click', () => {
                     this.popup.style.display = 'none';
-                    this.hideSearchHistory();
                 });
                 this.popup.appendChild(closeButton);
 
+                // Controls bar
                 const controlsBar = document.createElement('div');
                 controlsBar.style.marginBottom = '15px';
                 controlsBar.style.display = 'flex';
                 controlsBar.style.alignItems = 'center';
                 controlsBar.style.gap = '10px';
 
-                const themeSelect = document.createElement('select');
-                themeSelect.style.padding = '6px';
-                themeSelect.style.borderRadius = '4px';
-                themeSelect.style.border = '1px solid #555';
-                themeSelect.style.backgroundColor = '#2c2c2c';
-                themeSelect.style.color = '#dcdcdc';
-                const themeOptions = [
-                    { value: 'dark', text: 'Dark' },
-                    { value: 'light', text: 'Light' },
-                    { value: 'highContrast', text: 'High Contrast' }
-                ];
-                themeOptions.forEach(opt => {
-                    const optionElem = document.createElement('option');
-                    optionElem.value = opt.value;
-                    optionElem.text = opt.text;
-                    themeSelect.appendChild(optionElem);
-                });
-                themeSelect.value = this.theme;
-                themeSelect.addEventListener('change', () => {
-                    this.theme = themeSelect.value;
-                    this.applyTheme();
-                });
-                controlsBar.appendChild(themeSelect);
-
+                // Filter dropdown
                 this.filterSelect = document.createElement('select');
-                this.filterSelect.style.padding = '6px';
-                this.filterSelect.style.borderRadius = '4px';
-                this.filterSelect.style.border = '1px solid #555';
-                this.filterSelect.style.backgroundColor = '#2c2c2c';
-                this.filterSelect.style.color = '#dcdcdc';
+                this.filterSelect.style.padding = '8px 12px';
+                this.filterSelect.style.borderRadius = '5px';
+                this.filterSelect.style.border = '1px solid #44475a';
+                this.filterSelect.style.backgroundColor = '#3e4451';
+                this.filterSelect.style.color = '#abb2bf';
                 const options = [
                     { value: 'all', text: 'All' },
                     { value: 'LOG', text: 'Logs' },
@@ -178,84 +167,60 @@
                 this.filterSelect.addEventListener('change', () => this.applyFilters());
                 controlsBar.appendChild(this.filterSelect);
 
-                const searchContainer = document.createElement('div');
-                searchContainer.style.position = 'relative';
-
+                 // Search bar
                 this.searchInput = document.createElement('input');
                 this.searchInput.type = 'text';
                 this.searchInput.placeholder = 'Search...';
-                this.searchInput.style.flex = '1';
-                this.searchInput.style.padding = '6px';
-                this.searchInput.style.borderRadius = '4px';
-                this.searchInput.style.border = '1px solid #555';
-                this.searchInput.style.backgroundColor = '#2c2c2c';
-                this.searchInput.style.color = '#dcdcdc';
+                this.searchInput.style.padding = '8px';
+                this.searchInput.style.borderRadius = '5px';
+                this.searchInput.style.border = '1px solid #44475a';
+                this.searchInput.style.backgroundColor = '#3e4451';
+                this.searchInput.style.color = '#abb2bf';
                 this.searchInput.addEventListener('input', () => this.applyFilters());
-                this.searchInput.addEventListener('focus', () => this.showSearchHistory());
-                this.searchInput.addEventListener('blur', () => setTimeout(() => this.hideSearchHistory(), 100));
-                searchContainer.appendChild(this.searchInput);
+                controlsBar.appendChild(this.searchInput);
 
-                this.searchHistoryList = document.createElement('ul');
-                this.searchHistoryList.style.position = 'absolute';
-                this.searchHistoryList.style.top = '100%';
-                this.searchHistoryList.style.left = '0';
-                this.searchHistoryList.style.width = '100%';
-                this.searchHistoryList.style.listStyleType = 'none';
-                this.searchHistoryList.style.padding = '0';
-                this.searchHistoryList.style.margin = '0';
-                this.searchHistoryList.style.backgroundColor = '#333';
-                this.searchHistoryList.style.color = '#fff';
-                this.searchHistoryList.style.borderRadius = '4px';
-                this.searchHistoryList.style.border = '1px solid #555';
-                this.searchHistoryList.style.display = 'none';
-                searchContainer.appendChild(this.searchHistoryList);
 
-                controlsBar.appendChild(searchContainer);
-
-                const regexCheckbox = document.createElement('input');
-                regexCheckbox.type = 'checkbox';
-                regexCheckbox.id = 'regexCheckbox';
-                const regexLabel = document.createElement('label');
-                regexLabel.htmlFor = 'regexCheckbox';
-                regexLabel.innerText = 'Regex';
-                regexLabel.style.color = '#eee';
-                regexLabel.style.marginLeft = '5px';
-                controlsBar.appendChild(regexCheckbox);
-                controlsBar.appendChild(regexLabel);
+                // Export buttons with modern styling
+                const exportButtonStyle = `
+                    padding: 8px 16px;
+                    border: none;
+                    border-radius: 5px;
+                    background-color: #61afef; /* Blue-ish */
+                    color: #fff;
+                    cursor: pointer;
+                    transition: background-color 0.2s;
+                `;
 
                 const exportTxtButton = document.createElement('button');
                 exportTxtButton.innerText = 'Export TXT';
-                exportTxtButton.style.padding = '6px 12px';
-                exportTxtButton.style.border = 'none';
-                exportTxtButton.style.borderRadius = '4px';
-                exportTxtButton.style.backgroundColor = '#27ae60';
-                exportTxtButton.style.color = '#fff';
-                exportTxtButton.style.cursor = 'pointer';
+                exportTxtButton.style.cssText = exportButtonStyle;
+                exportTxtButton.addEventListener('mouseover', () => {
+                    exportTxtButton.style.backgroundColor = '#98c379';
+                });
+                exportTxtButton.addEventListener('mouseout', () => {
+                    exportTxtButton.style.backgroundColor = '#61afef';
+                });
                 exportTxtButton.addEventListener('click', () => this.exportLogsTxt());
+                controlsBar.appendChild(exportTxtButton);
 
                 const exportJsonButton = document.createElement('button');
                 exportJsonButton.innerText = 'Export JSON';
-                exportJsonButton.style.padding = '6px 12px';
-                exportJsonButton.style.border = 'none';
-                exportJsonButton.style.borderRadius = '4px';
-                exportJsonButton.style.backgroundColor = '#27ae60';
-                exportJsonButton.style.color = '#fff';
-                exportJsonButton.style.cursor = 'pointer';
+                exportJsonButton.style.cssText = exportButtonStyle;
+                exportJsonButton.addEventListener('mouseover', () => {
+                    exportJsonButton.style.backgroundColor = '#98c379';
+                });
+                exportJsonButton.addEventListener('mouseout', () => {
+                    exportJsonButton.style.backgroundColor = '#61afef';
+                });
                 exportJsonButton.addEventListener('click', () => this.exportLogsJson());
-
-                controlsBar.appendChild(exportTxtButton);
                 controlsBar.appendChild(exportJsonButton);
 
                 this.popup.appendChild(controlsBar);
 
-                this.variableStatsDiv = document.createElement('div'); // Variable stats display
-                this.variableStatsDiv.style.marginTop = '10px';
-                this.variableStatsDiv.style.color = this.getTextColor();
-                this.popup.appendChild(this.variableStatsDiv);
-
+                // Logs container
                 this.popupContent = document.createElement('div');
                 this.popupContent.style.overflowY = 'auto';
-                this.popupContent.style.height = 'calc(100% - 150px)'; // Adjusted height
+                this.popupContent.style.maxHeight = 'calc(100% - 100px)'; // Adjusted height
                 this.popupContent.style.paddingRight = '10px';
                 this.popup.appendChild(this.popupContent);
 
@@ -263,7 +228,6 @@
             }
             this.popup.style.display = 'block';
             this.applyFilters();
-            this.updateVariableStatsDisplay();
         }
 
         log(args) {
@@ -278,70 +242,20 @@
             this.addLog('ERROR', args.TITLE, args.DESCRIPTION);
         }
 
-        conditionalLog(args) {
-            if (args.CONDITION) {
-                this.addLog('LOG', 'Conditional Log', args.MESSAGE);
-            }
+         addCustomLog(args) {
+            this.addLog('LOG', 'Custom Log', args.MESSAGE);
         }
 
-        monitorVariable(args) {
-            const variableName = args.VARIABLE;
-            if (!this.variableStats[variableName]) {
-                this.variableStats[variableName] = {
-                    min: Infinity,
-                    max: -Infinity,
-                    sum: 0,
-                    count: 0,
-                    latest: null
-                };
-            }
-            this.updateVariableStats(variableName);
-        }
-
-        updateVariableStats(variableName) {
-            const variable = Scratch.vm.runtime.getVariable(variableName);
-            if (variable) {
-                const value = Scratch.Cast.toNumber(variable.value);
-                const stats = this.variableStats[variableName];
-
-                stats.latest = value;
-                stats.min = Math.min(stats.min, value);
-                stats.max = Math.max(stats.max, value);
-                stats.sum += value;
-                stats.count++;
-
-                this.updateVariableStatsDisplay();
-            }
-        }
-
-        updateVariableStatsDisplay() {
-            this.variableStatsDiv.innerHTML = '';
-            for (const variableName in this.variableStats) {
-                const stats = this.variableStats[variableName];
-                const variableDiv = document.createElement('div');
-                variableDiv.style.marginBottom = '5px';
-                variableDiv.style.color = this.getTextColor();
-                variableDiv.innerHTML = `
-                    <b>${variableName}:</b><br>
-                    Latest: ${stats.latest}<br>
-                    Min: ${stats.min === Infinity ? 'N/A' : stats.min}, 
-                    Max: ${stats.max === -Infinity ? 'N/A' : stats.max}, 
-                    Avg: ${stats.count === 0 ? 'N/A' : (stats.sum / stats.count).toFixed(2)}
-                `;
-                this.variableStatsDiv.appendChild(variableDiv);
-            }
-        }
-
-        addLog(type, title, description, icon = 'info') {
+        addLog(type, title, description) {
             const timestamp = new Date().toISOString();
             const logEntry = document.createElement('div');
             logEntry.style.padding = '12px';
             logEntry.style.marginBottom = '12px';
-            logEntry.style.borderRadius = '4px';
-            this.applyThemeToLogEntry(logEntry);
+            logEntry.style.borderRadius = '5px';
+            logEntry.style.backgroundColor = '#3e4451'; // Darker log entry background
             logEntry.style.borderLeft = `4px solid ${this.getLogColor(type)}`;
             logEntry.dataset.type = type;
-            logEntry.dataset.icon = icon; // Store the icon type
+            logEntry.style.wordBreak = 'break-word'; // Prevent overflow
 
             const headerDiv = document.createElement('div');
             headerDiv.style.display = 'flex';
@@ -353,19 +267,14 @@
             headerLeft.style.display = 'flex';
             headerLeft.style.alignItems = 'center';
 
-            const iconSpan = document.createElement('span');
-            iconSpan.innerHTML = this.getIconHTML(icon); // Insert the icon
-            iconSpan.style.marginRight = '5px';
-            headerLeft.appendChild(iconSpan);
-
-            const logType = document.createElement('span');
-            logType.style.fontWeight = 'bold';
-            logType.style.color = this.getLogColor(type);
-            logType.innerText = `[${type}]`;
-            headerLeft.appendChild(logType);
+            const logTypeSpan = document.createElement('span');
+            logTypeSpan.style.fontWeight = 'bold';
+            logTypeSpan.style.color = this.getLogColor(type);
+            logTypeSpan.innerText = `[${type}]`;
+            headerLeft.appendChild(logTypeSpan);
 
             const logTime = document.createElement('span');
-            logTime.style.color = '#aaa';
+            logTime.style.color = '#6b7280'; // Muted timestamp color
             logTime.style.fontSize = '12px';
             logTime.style.marginLeft = '10px';
             logTime.innerText = ` [${timestamp}]`;
@@ -373,27 +282,35 @@
 
             const logTitle = document.createElement('span');
             logTitle.style.marginLeft = '10px';
-            logTitle.style.color = this.getTextColor();
+            logTitle.style.color = '#fff';
             logTitle.innerText = title;
             headerLeft.appendChild(logTitle);
 
             headerDiv.appendChild(headerLeft);
 
+            // Copy button (optional, can be removed for cleaner look)
             const copyButton = document.createElement('button');
             copyButton.innerText = 'Copy';
             copyButton.style.fontSize = '12px';
             copyButton.style.padding = '4px 8px';
             copyButton.style.border = 'none';
             copyButton.style.borderRadius = '4px';
-            copyButton.style.backgroundColor = '#2980b9';
-            copyButton.style.color = '#fff';
+            copyButton.style.backgroundColor = '#5c6370'; // Darker button
+            copyButton.style.color = '#abb2bf';
             copyButton.style.cursor = 'pointer';
+            copyButton.style.transition = 'background-color 0.2s';
+            copyButton.addEventListener('mouseover', () => {
+                copyButton.style.backgroundColor = '#6b7280';
+            });
+            copyButton.addEventListener('mouseout', () => {
+                copyButton.style.backgroundColor = '#5c6370';
+            });
             copyButton.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const textToCopy = `[${type}] ${title}\n${description}`;
                 navigator.clipboard.writeText(textToCopy);
             });
-            headerDiv.appendChild(copyButton);
+             headerDiv.appendChild(copyButton);
 
             logEntry.appendChild(headerDiv);
 
@@ -403,7 +320,7 @@
                 contentDiv.style.marginTop = '8px';
                 contentDiv.style.paddingLeft = '20px';
                 contentDiv.style.display = 'none';
-                contentDiv.style.color = '#ccc';
+                contentDiv.style.color = '#9ca3af'; // Muted description color
                 contentDiv.innerText = description;
                 logEntry.appendChild(contentDiv);
 
@@ -417,45 +334,16 @@
             this.applyFilters();
         }
 
-        applyTheme() {
-            const bgColor = this.theme === 'dark' ? '#222' : this.theme === 'light' ? '#eee' : '#000';
-            const textColor = this.theme === 'dark' ? '#eee' : this.theme === 'light' ? '#222' : '#ff0';
-
-            this.popup.style.backgroundColor = bgColor;
-            this.popup.style.color = textColor;
-            if (this.variableStatsDiv) this.variableStatsDiv.style.color = textColor;
-
-            if (this.popupContent) {
-                Array.from(this.popupContent.children).forEach(logEntry => {
-                    this.applyThemeToLogEntry(logEntry);
-                });
-            }
-        }
-
-        applyThemeToLogEntry(logEntry) {
-            const bgColor = this.theme === 'dark' ? '#333' : this.theme === 'light' ? '#ddd' : '#111';
-            logEntry.style.backgroundColor = bgColor;
-            logEntry.style.color = this.getTextColor();
-        }
-
-        getTextColor() {
-            return this.theme === 'dark' ? '#eee' : this.theme === 'light' ? '#222' : '#ff0';
-        }
-
         getLogColor(type) {
             switch (type) {
-                case 'LOG': return '#3498db';
-                case 'WARNING': return '#f39c12';
-                case 'ERROR': return '#e74c3c';
-                default: return '#dcdcdc';
-            }
-        }
-
-        getIconHTML(icon) {
-            switch (icon) {
-                case 'warning': return '⚠️';
-                case 'error': return '❌';
-                default: return 'ℹ️'; // Info icon
+                case 'LOG':
+                    return '#61afef';
+                case 'WARNING':
+                    return '#d19a66';
+                case 'ERROR':
+                    return '#e06c75';
+                default:
+                    return '#98c379';
             }
         }
 
@@ -467,7 +355,6 @@
         closeLogs() {
             if (this.popup) {
                 this.popup.style.display = 'none';
-                this.hideSearchHistory();
             }
         }
 
@@ -496,73 +383,19 @@
 
         applyFilters() {
             const filterValue = this.filterSelect.value;
-            const searchTerm = this.searchInput.value.toLowerCase();
-            const useRegex = document.getElementById('regexCheckbox').checked;
-
-            if (searchTerm) {
-                this.addSearchTermToHistory(searchTerm);
-            }
+            const searchTerm = this.searchInput.value ? this.searchInput.value.toLowerCase() : '';
 
             Array.from(this.popupContent.children).forEach(logEntry => {
                 const logType = logEntry.dataset.type;
                 const logText = logEntry.innerText.toLowerCase();
 
-                let searchMatch = true;
-                if (searchTerm) {
-                    try {
-                        if (useRegex) {
-                            const regex = new RegExp(searchTerm, 'i');
-                            searchMatch = regex.test(logText);
-                        } else {
-                            searchMatch = logText.includes(searchTerm);
-                        }
-                    } catch (error) {
-                        console.error('Invalid regex:', error);
-                        searchMatch = false;
-                    }
-                }
-
                 const typeMatch = filterValue === 'all' || logType === filterValue;
+                const searchMatch = !searchTerm || logText.includes(searchTerm);
+
                 logEntry.style.display = (typeMatch && searchMatch) ? 'block' : 'none';
             });
         }
-
-        addSearchTermToHistory(term) {
-            if (!this.searchHistory.includes(term)) {
-                this.searchHistory.push(term);
-                if (this.searchHistory.length > 10) {
-                    this.searchHistory.shift();
-                }
-                this.updateSearchHistoryList();
-            }
-        }
-
-        showSearchHistory() {
-            this.isSearchHistoryVisible = true;
-            this.updateSearchHistoryList();
-            this.searchHistoryList.style.display = 'block';
-        }
-
-        hideSearchHistory() {
-            this.isSearchHistoryVisible = false;
-            this.searchHistoryList.style.display = 'none';
-        }
-
-        updateSearchHistoryList() {
-            this.searchHistoryList.innerHTML = '';
-            this.searchHistory.forEach(term => {
-                const listItem = document.createElement('li');
-                listItem.style.padding = '5px';
-                listItem.style.cursor = 'pointer';
-                listItem.textContent = term;
-                listItem.addEventListener('click', () => {
-                    this.searchInput.value = term;
-                    this.applyFilters();
-                    this.hideSearchHistory();
-                });
-                this.searchHistoryList.appendChild(listItem);
-            });
-        }
     }
+
     Scratch.extensions.register(new LogsExtension());
 }(Scratch));
