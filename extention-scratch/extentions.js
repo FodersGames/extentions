@@ -1,48 +1,49 @@
-// Déclaration des variables pour les publicités
-let interstitialAd = null;
+(function(Scratch) {
+    'use strict';
 
-// Fonction pour charger une publicité
-function loadAd() {
-    // Créer une instance de la publicité (interstitielle)
-    interstitialAd = new google.ads.interactiveMedia.ads.InterstitialAd();
-    interstitialAd.load('YOUR_ADMOB_AD_UNIT_ID'); // Remplace par ton ID de publicité AdMob
+    class AdRewards {
+        constructor() {
+            this._iframe = null;
+        }
 
-    // Écouteur d'événement pour la réussite du chargement
-    interstitialAd.on('loaded', function() {
-        console.log('Publicité chargée avec succès');
-        callScratchBlock('onAdCompleted');
-    });
+        getInfo() {
+            return {
+                id: 'adRewards',
+                name: 'Ad Rewards',
+                blocks: [
+                    {
+                        opcode: 'loadAds',
+                        blockType: Scratch.BlockType.COMMAND,
+                        text: 'Afficher la page de publicité pendant 5 secondes'
+                    }
+                ]
+            };
+        }
 
-    // Écouteur d'événement pour l'échec du chargement
-    interstitialAd.on('failed', function(error) {
-        console.error('Erreur de publicité : ', error);
-        callScratchBlock('onAdFailed', error.message); // Renvoie l'erreur à Scratch
-    });
-}
+        loadAds() {
+            // Crée un iframe pour afficher la page du lien
+            if (!this._iframe) {
+                this._iframe = document.createElement('iframe');
+                this._iframe.style.position = 'absolute';
+                this._iframe.style.top = '0';
+                this._iframe.style.left = '0';
+                this._iframe.style.width = '100%';
+                this._iframe.style.height = '100%';
+                this._iframe.style.border = 'none';
+                this._iframe.src = 'https://www.effectiveratecpm.com/d19zh5qmfa?key=224c484e085aa1381c3a4c560b9a661e';
 
-// Fonction pour afficher la publicité
-function showAd() {
-    if (interstitialAd) {
-        interstitialAd.show();
-    } else {
-        console.log('La publicité n\'a pas été chargée');
-        callScratchBlock('onAdFailed', 'La publicité n\'a pas été chargée');
+                // Ajouter l'iframe au corps du document
+                document.body.appendChild(this._iframe);
+            }
+
+            // Cache l'iframe après 5 secondes
+            setTimeout(() => {
+                this._iframe.style.display = 'none';  // Cache l'iframe
+            }, 5000);
+        }
     }
-}
 
-// Fonction pour appeler un bloc Scratch
-function callScratchBlock(blockName, errorMsg) {
-    // Remplacer par la logique spécifique pour Scratch
-    if (blockName === 'onAdCompleted') {
-        console.log('La publicité est terminée.');
-        // Ici tu peux appeler ton bloc Scratch "pubTerminee" ou autre action
-    } else if (blockName === 'onAdFailed') {
-        console.log('Erreur de publicité:', errorMsg);
-        // Appeler ton bloc Scratch "pubEchouee" et passer le message d'erreur
-        // Par exemple, tu peux déclencher un bloc qui affiche l'erreur à l'utilisateur
-    }
-}
+    // Enregistre l'extension dans Scratch
+    Scratch.extensions.register(new AdRewards());
 
-// Utilisation des fonctions
-loadAd();  // Charger la publicité dès le début
-showAd();  // Afficher la publicité si elle est chargée
+})(Scratch);
