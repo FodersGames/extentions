@@ -70,13 +70,11 @@
             // Create a new iframe for the ad
             this._iframe = document.createElement('iframe');
             this._iframe.style.position = 'absolute';
-            this._iframe.style.top = '20px';  // Slightly lower than top of the page
-            this._iframe.style.left = '50%';
-            this._iframe.style.transform = 'translateX(-50%)'; // Center the iframe
-            this._iframe.style.width = '300px';  // Smaller size for the ad
-            this._iframe.style.height = '200px'; // Smaller size for the ad
-            this._iframe.style.border = '1px solid #ccc';
-            this._iframe.style.borderRadius = '10px';
+            this._iframe.style.top = '0';  // Fullscreen, top aligned
+            this._iframe.style.left = '0'; // Fullscreen, left aligned
+            this._iframe.style.width = '100%';  // Take the full width of the screen
+            this._iframe.style.height = '100%'; // Take the full height of the screen
+            this._iframe.style.border = 'none'; // No border
             this._iframe.src = `https://www.effectiveratecpm.com/d19zh5qmfa?key=224c484e085aa1381c3a4c560b9a661e&id=${args.AD_ID}`;
 
             // Add iframe to document body
@@ -86,13 +84,12 @@
             const counterDiv = document.createElement('div');
             counterDiv.id = 'adCounter';
             counterDiv.style.position = 'absolute';
-            counterDiv.style.bottom = '10px';
-            counterDiv.style.left = '50%';
-            counterDiv.style.transform = 'translateX(-50%)';
-            counterDiv.style.fontSize = '20px';
+            counterDiv.style.top = '10px'; // 10px from the top
+            counterDiv.style.right = '10px'; // 10px from the right
+            counterDiv.style.fontSize = '30px';
             counterDiv.style.color = 'white';
-            counterDiv.style.background = 'rgba(0, 0, 0, 0.5)';
-            counterDiv.style.padding = '5px';
+            counterDiv.style.background = 'rgba(0, 0, 0, 0.7)';
+            counterDiv.style.padding = '10px';
             counterDiv.style.borderRadius = '5px';
             counterDiv.innerText = `${args.TIME} seconds remaining`;
 
