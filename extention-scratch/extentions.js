@@ -6,6 +6,7 @@
             this._iframe = null;
             this._adSuccess = {};
             this._adFailed = {};
+            this._adTimers = {};
         }
 
         getInfo() {
@@ -78,11 +79,18 @@
             // Ajouter l'iframe au corps du document
             document.body.appendChild(this._iframe);
 
-            // Après le temps défini, on cache l'iframe et on gère l'état de la publicité
-            setTimeout(() => {
-                this._iframe.style.display = 'none';  // Cache l'iframe après le temps défini
-                this._adSuccess[args.AD_ID] = true;  // La publicité avec cet ID a été vue avec succès
-                this._adFailed[args.AD_ID] = false;  // La publicité n'a pas échoué
+            // Démarre un timer pour la publicité et réinitialiser l'état de la pub
+            this._adTimers[args.AD_ID] = setTimeout(() => {
+                // Après le temps défini, on cache l'iframe
+                this._iframe.style.display = 'none';
+
+                // La publicité a réussi si elle n'a pas échoué
+                if (!this._adFailed[args.AD_ID]) {
+                    this._adSuccess[args.AD_ID] = true;
+                }
+
+                // Exécuter les blocs associés si la publicité a fini
+                Scratch.extensions.triggerEvent('onAdSuccess', { AD_ID: args.AD_ID });
             }, args.TIME * 1000);  // Multiplie le temps par 1000 pour obtenir des millisecondes
         }
 
