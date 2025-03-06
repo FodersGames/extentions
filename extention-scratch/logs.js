@@ -8,6 +8,7 @@
             this.popupContent = null;
             this.filterSelect = null;
             this.searchInput = null;
+            this.autoScroll = true; // Added auto-scroll feature
         }
 
         getInfo() {
@@ -66,29 +67,6 @@
                         }
                     },
                     {
-                        opcode: 'logRepeat',
-                        blockType: Scratch.BlockType.CONTROL,
-                        text: 'Log Repeat [LOG_TYPE] Title: [TITLE] [TIMES] [STACK]',
-                        arguments: {
-                            LOG_TYPE: {
-                                type: Scratch.ArgumentType.STRING,
-                                menu: 'logTypes',
-                                defaultValue: 'LOG'
-                            },
-                            TITLE: {
-                                type: Scratch.ArgumentType.STRING,
-                                defaultValue: 'My Block Title'
-                            },
-                            TIMES: {
-                                type: Scratch.ArgumentType.NUMBER,
-                                defaultValue: '1'
-                            },
-                            STACK: {
-                                type: Scratch.ArgumentType.STATEMENT
-                            }
-                        }
-                    },
-                    {
                         opcode: 'clearLogs',
                         blockType: Scratch.BlockType.COMMAND,
                         text: 'Clear logs'
@@ -108,10 +86,7 @@
                         blockType: Scratch.BlockType.COMMAND,
                         text: 'Export logs as JSON'
                     }
-                ],
-                menus: {
-                    logTypes: ['LOG', 'WARNING', 'ERROR']
-                }
+                ]
             };
         }
 
@@ -126,8 +101,8 @@
                 this.popup.style.width = '85%';
                 this.popup.style.maxWidth = '900px';
                 this.popup.style.height = '80%';
-                this.popup.style.backgroundColor = '#1b1b1b';
-                this.popup.style.border = '1px solid #333';
+                this.popup.style.backgroundColor = '#222'; // Darker background
+                this.popup.style.border = '1px solid #444';
                 this.popup.style.borderRadius = '8px';
                 this.popup.style.boxShadow = '0 6px 12px rgba(0, 0, 0, 0.7)';
                 this.popup.style.zIndex = '9999';
@@ -135,6 +110,7 @@
                 this.popup.style.overflow = 'hidden';
                 this.popup.style.display = 'none';
                 this.popup.style.fontFamily = '"Roboto Mono", Consolas, monospace';
+                this.popup.style.color = '#eee'; // Light text color
 
                 // Close button: repositioned closer to the edge
                 const closeButton = document.createElement('span');
@@ -169,7 +145,7 @@
                 this.filterSelect.style.padding = '6px';
                 this.filterSelect.style.borderRadius = '4px';
                 this.filterSelect.style.border = '1px solid #555';
-                this.filterSelect.style.backgroundColor = '#2c2c2c';
+                this.filterSelect.style.backgroundColor = '#333';
                 this.filterSelect.style.color = '#dcdcdc';
                 const options = [
                     { value: 'all', text: 'All' },
@@ -184,6 +160,7 @@
                     this.filterSelect.appendChild(optionElem);
                 });
                 this.filterSelect.addEventListener('change', () => this.applyFilters());
+                controlsBar.appendChild(this.filterSelect);
 
                 // Search bar
                 this.searchInput = document.createElement('input');
@@ -193,9 +170,30 @@
                 this.searchInput.style.padding = '6px';
                 this.searchInput.style.borderRadius = '4px';
                 this.searchInput.style.border = '1px solid #555';
-                this.searchInput.style.backgroundColor = '#2c2c2c';
+                this.searchInput.style.backgroundColor = '#333';
                 this.searchInput.style.color = '#dcdcdc';
                 this.searchInput.addEventListener('input', () => this.applyFilters());
+                controlsBar.appendChild(this.searchInput);
+
+                // Auto-scroll checkbox
+                const autoScrollCheckbox = document.createElement('input');
+                autoScrollCheckbox.type = 'checkbox';
+                autoScrollCheckbox.id = 'autoScrollCheckbox';
+                autoScrollCheckbox.checked = this.autoScroll;
+                autoScrollCheckbox.addEventListener('change', () => {
+                    this.autoScroll = autoScrollCheckbox.checked;
+                    if (this.autoScroll) {
+                        this.scrollToBottom();
+                    }
+                });
+                const autoScrollLabel = document.createElement('label');
+                autoScrollLabel.htmlFor = 'autoScrollCheckbox';
+                autoScrollLabel.innerText = 'Auto-scroll';
+                autoScrollLabel.style.color = '#eee';
+                autoScrollLabel.style.marginLeft = '5px';
+
+                controlsBar.appendChild(autoScrollCheckbox);
+                controlsBar.appendChild(autoScrollLabel);
 
                 // Export buttons
                 const exportTxtButton = document.createElement('button');
@@ -214,6 +212,7 @@
                     exportTxtButton.style.backgroundColor = '#27ae60';
                 });
                 exportTxtButton.addEventListener('click', () => this.exportLogsTxt());
+                controlsBar.appendChild(exportTxtButton);
 
                 const exportJsonButton = document.createElement('button');
                 exportJsonButton.innerText = 'Export JSON';
@@ -231,11 +230,8 @@
                     exportJsonButton.style.backgroundColor = '#27ae60';
                 });
                 exportJsonButton.addEventListener('click', () => this.exportLogsJson());
-
-                controlsBar.appendChild(this.filterSelect);
-                controlsBar.appendChild(this.searchInput);
-                controlsBar.appendChild(exportTxtButton);
                 controlsBar.appendChild(exportJsonButton);
+
                 this.popup.appendChild(controlsBar);
 
                 // Logs container
@@ -246,9 +242,20 @@
                 this.popup.appendChild(this.popupContent);
 
                 document.body.appendChild(this.popup);
+
+                // Attach scroll listener for manual scroll detection
+                this.popupContent.addEventListener('scroll', () => {
+                    if (this.popupContent.scrollTop + this.popupContent.clientHeight < this.popupContent.scrollHeight - 10) {
+                        this.autoScroll = false;
+                        autoScrollCheckbox.checked = false;
+                    } else if (autoScrollCheckbox.checked) {
+                        this.autoScroll = true;
+                    }
+                });
             }
             this.popup.style.display = 'block';
             this.applyFilters();
+            this.scrollToBottom();
         }
 
         log(args) {
@@ -263,64 +270,13 @@
             this.addLog('ERROR', args.TITLE, args.DESCRIPTION);
         }
 
-        logRepeat(args, util) {
-            const logType = args.LOG_TYPE;
-            const title = args.TITLE;
-            const times = Math.floor(Scratch.Cast.toNumber(args.TIMES)); // Ensure integer
-            if (times <= 0) return; // Don't repeat zero or negative times
-
-            for (let i = 0; i < times; i++) {
-                // Execute the stack of blocks within the loop
-                if (util.stackFrame.childBlocks) {
-                    // Extract block info from the blocks in the stack and add the log
-                     this.extractBlockInfo(util.stackFrame.childBlocks)
-                }
-
-                this.addLog(logType, title, `Repetition ${i + 1}`);
-                Scratch.vm.runtime.startHats(
-                    'control_start',
-                    {
-                        SOURCE_BLOCK: util.stackFrame.parentKey
-                    },
-                    util.target
-                );
-
-            }
-        }
-
-
-        extractBlockInfo(blocks) {
-            for (const block of blocks) {
-                if (block.opcode === 'motion_movesteps') {
-                    // Example for "move steps" block
-                    const steps = Scratch.Cast.toNumber(block.inputs.STEPS.shadow.fields.NUM.value);
-                    console.log('move steps ' + steps)
-                    // return steps;
-                } else if (block.opcode === 'control_if') {
-                    // Example for "if" block
-                    console.log('if condition');
-                    if (block.inputs.CONDITION.block) {
-                        // this.extractBlockInfo([block.inputs.CONDITION.block]); // Condition
-                        // return 'if';
-                    }
-                } else if(block.opcode === 'sound_playuntildone'){
-                    console.log('play sound')
-                }
-
-                if(block.next){
-                    // this.extractBlockInfo([block.next])
-                }
-            }
-
-        }
-
         addLog(type, title, description) {
             const timestamp = new Date().toISOString();
             const logEntry = document.createElement('div');
             logEntry.style.padding = '12px';
             logEntry.style.marginBottom = '12px';
             logEntry.style.borderRadius = '4px';
-            logEntry.style.backgroundColor = '#2c2c2c';
+            logEntry.style.backgroundColor = '#333'; // Darker log entry
             logEntry.style.borderLeft = `4px solid ${this.getLogColor(type)}`;
             logEntry.dataset.type = type;
 
@@ -349,8 +305,7 @@
 
             const logTitle = document.createElement('span');
             logTitle.style.marginLeft = '10px';
-            // Set title text color explicitly to white
-            logTitle.style.color = '#fff';
+            logTitle.style.color = '#eee'; // Light text color
             logTitle.innerText = title;
             headerLeft.appendChild(logTitle);
 
@@ -399,8 +354,16 @@
 
             this.popupContent.appendChild(logEntry);
             this.logs.push({ type, title, description, timestamp });
-            this.popupContent.scrollTop = this.popupContent.scrollHeight;
+
+            if (this.autoScroll) {
+                this.scrollToBottom();
+            }
+
             this.applyFilters();
+        }
+
+        scrollToBottom() {
+            this.popupContent.scrollTop = this.popupContent.scrollHeight;
         }
 
         getLogColor(type) {
