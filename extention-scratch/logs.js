@@ -3,12 +3,9 @@
 
     class LogsExtension {
         constructor() {
-            // Stocke les logs sous forme d'objets { type, title, description, timestamp }
             this.logs = [];
             this.popup = null;
             this.popupContent = null;
-            this.filterSelect = null;
-            this.searchInput = null;
         }
 
         getInfo() {
@@ -19,411 +16,195 @@
                     {
                         opcode: 'showLogs',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: 'Show logs popup'
+                        text: 'Show logs popup',
                     },
                     {
                         opcode: 'log',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: 'Log [TITLE] [DESCRIPTION]',
+                        text: 'Log [MESSAGE]',
                         arguments: {
-                            TITLE: {
+                            MESSAGE: {
                                 type: Scratch.ArgumentType.STRING,
-                                defaultValue: 'Log Title'
-                            },
-                            DESCRIPTION: {
-                                type: Scratch.ArgumentType.STRING,
-                                defaultValue: 'Log Description'
+                                defaultValue: 'This is a log message'
                             }
                         }
                     },
                     {
                         opcode: 'warn',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: 'Warn [TITLE] [DESCRIPTION]',
+                        text: 'Warn [MESSAGE]',
                         arguments: {
-                            TITLE: {
+                            MESSAGE: {
                                 type: Scratch.ArgumentType.STRING,
-                                defaultValue: 'Warning Title'
-                            },
-                            DESCRIPTION: {
-                                type: Scratch.ArgumentType.STRING,
-                                defaultValue: 'Warning Description'
+                                defaultValue: 'This is a warning message'
                             }
                         }
                     },
                     {
                         opcode: 'error',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: 'Error [TITLE] [DESCRIPTION]',
+                        text: 'Error [MESSAGE]',
                         arguments: {
-                            TITLE: {
+                            MESSAGE: {
                                 type: Scratch.ArgumentType.STRING,
-                                defaultValue: 'Error Title'
-                            },
-                            DESCRIPTION: {
-                                type: Scratch.ArgumentType.STRING,
-                                defaultValue: 'Error Description'
-                            }
-                        }
-                    },
-                    // Nouveau bloc cap (hat block) pour encapsuler une logique (sous-blocs)
-                    {
-                        opcode: 'execLogic',
-                        blockType: Scratch.BlockType.HAT,
-                        text: 'When execute logic [TITLE] as [TYPE] then %c',
-                        arguments: {
-                            TITLE: {
-                                type: Scratch.ArgumentType.STRING,
-                                defaultValue: 'Logic Title'
-                            },
-                            TYPE: {
-                                type: Scratch.ArgumentType.STRING,
-                                menu: 'logicType',
-                                defaultValue: 'LOG'
-                            },
-                            // %c permet d’ajouter une zone de sous-blocs (cap)
-                            SUBSTACK: {
-                                type: Scratch.ArgumentType.STACK
+                                defaultValue: 'This is an error message'
                             }
                         }
                     },
                     {
                         opcode: 'clearLogs',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: 'Clear logs'
+                        text: 'Clear logs',
                     },
                     {
                         opcode: 'closeLogs',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: 'Close logs popup'
+                        text: 'Close logs popup',
                     },
                     {
-                        opcode: 'exportLogsTxt',
-                        blockType: Scratch.BlockType.COMMAND,
-                        text: 'Export logs as TXT'
-                    },
-                    {
-                        opcode: 'exportLogsJson',
-                        blockType: Scratch.BlockType.COMMAND,
-                        text: 'Export logs as JSON'
+                        opcode: 'logLogic',
+                        blockType: Scratch.BlockType.CAP,
+                        text: 'Execute and log [LOGIC] with level [LEVEL]',
+                        arguments: {
+                            LOGIC: {
+                                type: Scratch.ArgumentType.BLOCK,
+                                defaultValue: null
+                            },
+                            LEVEL: {
+                                type: Scratch.ArgumentType.STRING,
+                                menu: 'logLevels',
+                                defaultValue: 'LOG'
+                            }
+                        }
                     }
                 ],
                 menus: {
-                    logicType: {
-                        items: ['LOG', 'WARNING', 'ERROR']
-                    }
+                    logLevels: ['LOG', 'WARNING', 'ERROR']
                 }
             };
         }
 
         showLogs() {
+            // Create the popup if it doesn't exist
             if (!this.popup) {
-                // Création de la popup (style inspiré de Lunar Unity Console v1.8.1)
                 this.popup = document.createElement('div');
                 this.popup.style.position = 'fixed';
                 this.popup.style.top = '50%';
                 this.popup.style.left = '50%';
                 this.popup.style.transform = 'translate(-50%, -50%)';
-                this.popup.style.width = '85%';
-                this.popup.style.maxWidth = '900px';
-                this.popup.style.height = '80%';
-                this.popup.style.backgroundColor = '#1b1b1b';
-                this.popup.style.border = '1px solid #333';
-                this.popup.style.borderRadius = '8px';
-                this.popup.style.boxShadow = '0 6px 12px rgba(0, 0, 0, 0.7)';
+                this.popup.style.width = '80%';
+                this.popup.style.maxWidth = '600px';
+                this.popup.style.height = '70%';
+                this.popup.style.backgroundColor = '#fff';
+                this.popup.style.border = '1px solid #ccc';
+                this.popup.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.2)';
                 this.popup.style.zIndex = '9999';
                 this.popup.style.padding = '20px';
-                this.popup.style.overflow = 'hidden';
-                this.popup.style.display = 'none';
-                this.popup.style.fontFamily = '"Roboto Mono", Consolas, monospace';
+                this.popup.style.overflowY = 'auto';
+                this.popup.style.display = 'none'; // Initially hidden
 
-                // Bouton de fermeture
+                // Close button
                 const closeButton = document.createElement('span');
                 closeButton.innerHTML = '&times;';
                 closeButton.style.position = 'absolute';
                 closeButton.style.top = '10px';
                 closeButton.style.right = '10px';
-                closeButton.style.fontSize = '28px';
-                closeButton.style.color = '#e74c3c';
+                closeButton.style.fontSize = '24px';
                 closeButton.style.cursor = 'pointer';
-                closeButton.style.transition = 'color 0.2s';
-                closeButton.addEventListener('mouseover', () => {
-                    closeButton.style.color = '#ff6b6b';
-                });
-                closeButton.addEventListener('mouseout', () => {
-                    closeButton.style.color = '#e74c3c';
-                });
                 closeButton.addEventListener('click', () => {
-                    this.popup.style.display = 'none';
+                    this.popup.style.display = 'none'; // Hide the popup when close is clicked
                 });
-                this.popup.appendChild(closeButton);
 
-                // Barre de contrôle : filtre, recherche et boutons d'export
-                const controlsBar = document.createElement('div');
-                controlsBar.style.marginBottom = '15px';
-                controlsBar.style.display = 'flex';
-                controlsBar.style.alignItems = 'center';
-                controlsBar.style.gap = '10px';
-
-                // Menu déroulant pour le filtrage
-                this.filterSelect = document.createElement('select');
-                this.filterSelect.style.padding = '6px';
-                this.filterSelect.style.borderRadius = '4px';
-                this.filterSelect.style.border = '1px solid #555';
-                this.filterSelect.style.backgroundColor = '#2c2c2c';
-                this.filterSelect.style.color = '#dcdcdc';
-                const options = [
-                    { value: 'all', text: 'All' },
-                    { value: 'LOG', text: 'Logs' },
-                    { value: 'WARNING', text: 'Warn' },
-                    { value: 'ERROR', text: 'Error' }
-                ];
-                options.forEach(opt => {
-                    const optionElem = document.createElement('option');
-                    optionElem.value = opt.value;
-                    optionElem.text = opt.text;
-                    this.filterSelect.appendChild(optionElem);
-                });
-                this.filterSelect.addEventListener('change', () => this.applyFilters());
-
-                // Barre de recherche
-                this.searchInput = document.createElement('input');
-                this.searchInput.type = 'text';
-                this.searchInput.placeholder = 'Search...';
-                this.searchInput.style.flex = '1';
-                this.searchInput.style.padding = '6px';
-                this.searchInput.style.borderRadius = '4px';
-                this.searchInput.style.border = '1px solid #555';
-                this.searchInput.style.backgroundColor = '#2c2c2c';
-                this.searchInput.style.color = '#dcdcdc';
-                this.searchInput.addEventListener('input', () => this.applyFilters());
-
-                // Boutons d'export
-                const exportTxtButton = document.createElement('button');
-                exportTxtButton.innerText = 'Export TXT';
-                exportTxtButton.style.padding = '6px 12px';
-                exportTxtButton.style.border = 'none';
-                exportTxtButton.style.borderRadius = '4px';
-                exportTxtButton.style.backgroundColor = '#27ae60';
-                exportTxtButton.style.color = '#fff';
-                exportTxtButton.style.cursor = 'pointer';
-                exportTxtButton.style.transition = 'background-color 0.2s';
-                exportTxtButton.addEventListener('mouseover', () => {
-                    exportTxtButton.style.backgroundColor = '#2ecc71';
-                });
-                exportTxtButton.addEventListener('mouseout', () => {
-                    exportTxtButton.style.backgroundColor = '#27ae60';
-                });
-                exportTxtButton.addEventListener('click', () => this.exportLogsTxt());
-
-                const exportJsonButton = document.createElement('button');
-                exportJsonButton.innerText = 'Export JSON';
-                exportJsonButton.style.padding = '6px 12px';
-                exportJsonButton.style.border = 'none';
-                exportJsonButton.style.borderRadius = '4px';
-                exportJsonButton.style.backgroundColor = '#27ae60';
-                exportJsonButton.style.color = '#fff';
-                exportJsonButton.style.cursor = 'pointer';
-                exportJsonButton.style.transition = 'background-color 0.2s';
-                exportJsonButton.addEventListener('mouseover', () => {
-                    exportJsonButton.style.backgroundColor = '#2ecc71';
-                });
-                exportJsonButton.addEventListener('mouseout', () => {
-                    exportJsonButton.style.backgroundColor = '#27ae60';
-                });
-                exportJsonButton.addEventListener('click', () => this.exportLogsJson());
-
-                controlsBar.appendChild(this.filterSelect);
-                controlsBar.appendChild(this.searchInput);
-                controlsBar.appendChild(exportTxtButton);
-                controlsBar.appendChild(exportJsonButton);
-                this.popup.appendChild(controlsBar);
-
-                // Conteneur des logs
+                // Create the content container for logs
                 this.popupContent = document.createElement('div');
-                this.popupContent.style.overflowY = 'auto';
-                this.popupContent.style.height = 'calc(100% - 80px)';
-                this.popupContent.style.paddingRight = '10px';
-                this.popup.appendChild(this.popupContent);
+                this.popupContent.style.fontFamily = 'Arial, sans-serif';
+                this.popupContent.style.fontSize = '16px';
 
+                // Add the close button and content to the popup
+                this.popup.appendChild(closeButton);
+                this.popup.appendChild(this.popupContent);
                 document.body.appendChild(this.popup);
             }
+
+            // Show the popup
             this.popup.style.display = 'block';
-            this.applyFilters();
         }
 
-        // Blocs standards de log
         log(args) {
-            this.addLog('LOG', args.TITLE, args.DESCRIPTION);
+            this.addLog('LOG', args.MESSAGE);
         }
 
         warn(args) {
-            this.addLog('WARNING', args.TITLE, args.DESCRIPTION);
+            this.addLog('WARNING', args.MESSAGE);
         }
 
         error(args) {
-            this.addLog('ERROR', args.TITLE, args.DESCRIPTION);
+            this.addLog('ERROR', args.MESSAGE);
         }
 
-        // Nouveau bloc cap : on y place des sous-blocs (logique)
-        // Lorsqu'il est déclenché, il tente d'extraire la logique (via toString) des blocs imbriqués
-        // et l'envoie dans la console avec le titre et le type choisis.
-        execLogic(args) {
-            let logicStr = "";
-            try {
-                // Conversion de la fonction callback représentant le sous-ensemble de blocs en chaîne
-                logicStr = args.SUBSTACK.toString();
-            } catch (e) {
-                logicStr = "[Unable to extract logic]";
-            }
-            this.addLog(args.TYPE, args.TITLE, logicStr);
-        }
-
-        addLog(type, title, description) {
-            const timestamp = new Date().toISOString();
+        addLog(type, message) {
             const logEntry = document.createElement('div');
-            logEntry.style.padding = '12px';
-            logEntry.style.marginBottom = '12px';
-            logEntry.style.borderRadius = '4px';
-            logEntry.style.backgroundColor = '#2c2c2c';
-            logEntry.style.borderLeft = `4px solid ${this.getLogColor(type)}`;
-            logEntry.dataset.type = type;
-
-            const headerDiv = document.createElement('div');
-            headerDiv.style.display = 'flex';
-            headerDiv.style.justifyContent = 'space-between';
-            headerDiv.style.alignItems = 'center';
-            headerDiv.style.cursor = description && description.trim() !== '' ? 'pointer' : 'default';
-
-            const headerLeft = document.createElement('div');
-            headerLeft.style.display = 'flex';
-            headerLeft.style.alignItems = 'center';
+            logEntry.style.padding = '5px';
+            logEntry.style.marginBottom = '10px';
+            logEntry.style.borderBottom = '1px solid #eee';
 
             const logType = document.createElement('span');
             logType.style.fontWeight = 'bold';
             logType.style.color = this.getLogColor(type);
             logType.innerText = `[${type}]`;
-            headerLeft.appendChild(logType);
 
-            const logTime = document.createElement('span');
-            logTime.style.color = '#aaa';
-            logTime.style.fontSize = '12px';
-            logTime.style.marginLeft = '10px';
-            logTime.innerText = ` [${timestamp}]`;
-            headerLeft.appendChild(logTime);
+            const logMessage = document.createElement('span');
+            logMessage.style.marginLeft = '10px';
+            logMessage.innerText = message;
 
-            const logTitle = document.createElement('span');
-            logTitle.style.marginLeft = '10px';
-            logTitle.style.color = '#fff';
-            logTitle.innerText = title;
-            headerLeft.appendChild(logTitle);
-
-            headerDiv.appendChild(headerLeft);
-
-            // Bouton de copie
-            const copyButton = document.createElement('button');
-            copyButton.innerText = 'Copy';
-            copyButton.style.fontSize = '12px';
-            copyButton.style.padding = '4px 8px';
-            copyButton.style.border = 'none';
-            copyButton.style.borderRadius = '4px';
-            copyButton.style.backgroundColor = '#2980b9';
-            copyButton.style.color = '#fff';
-            copyButton.style.cursor = 'pointer';
-            copyButton.style.transition = 'background-color 0.2s';
-            copyButton.addEventListener('mouseover', () => {
-                copyButton.style.backgroundColor = '#3498db';
-            });
-            copyButton.addEventListener('mouseout', () => {
-                copyButton.style.backgroundColor = '#2980b9';
-            });
-            copyButton.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const textToCopy = `[${type}] ${title}\n${description}`;
-                navigator.clipboard.writeText(textToCopy);
-            });
-            headerDiv.appendChild(copyButton);
-
-            logEntry.appendChild(headerDiv);
-
-            let contentDiv = null;
-            if (description && description.trim() !== '') {
-                contentDiv = document.createElement('div');
-                contentDiv.style.marginTop = '8px';
-                contentDiv.style.paddingLeft = '20px';
-                contentDiv.style.display = 'none';
-                contentDiv.style.color = '#ccc';
-                contentDiv.innerText = description;
-                logEntry.appendChild(contentDiv);
-
-                headerDiv.addEventListener('click', () => {
-                    contentDiv.style.display = contentDiv.style.display === 'none' ? 'block' : 'none';
-                });
-            }
-
+            logEntry.appendChild(logType);
+            logEntry.appendChild(logMessage);
             this.popupContent.appendChild(logEntry);
-            this.logs.push({ type, title, description, timestamp });
+            this.logs.push({ type, message });
+
+            // Auto scroll to bottom to show the latest log
             this.popupContent.scrollTop = this.popupContent.scrollHeight;
-            this.applyFilters();
         }
 
         getLogColor(type) {
             switch (type) {
                 case 'LOG':
-                    return '#3498db';
+                    return 'blue';
                 case 'WARNING':
-                    return '#f39c12';
+                    return 'orange';
                 case 'ERROR':
-                    return '#e74c3c';
+                    return 'red';
                 default:
-                    return '#dcdcdc';
+                    return 'black';
             }
         }
 
         clearLogs() {
             this.logs = [];
-            this.popupContent.innerHTML = '';
+            this.popupContent.innerHTML = ''; // Clear all logs in the popup
         }
 
         closeLogs() {
             if (this.popup) {
-                this.popup.style.display = 'none';
+                this.popup.style.display = 'none'; // Hide the popup
             }
         }
 
-        exportLogsTxt() {
-            let content = '';
-            this.logs.forEach(log => {
-                content += `[${log.type}] [${log.timestamp}] ${log.title}\n${log.description}\n\n`;
-            });
-            const blob = new Blob([content], { type: 'text/plain' });
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = 'logs.txt';
-            a.click();
+        logLogic(args) {
+            const logicCode = this.getLogicCode(args.LOGIC);
+            const level = args.LEVEL;
+            const logMessage = `Executed Logic: ${logicCode}`;
+            this.addLog(level, logMessage);
         }
 
-        exportLogsJson() {
-            const content = JSON.stringify(this.logs, null, 2);
-            const blob = new Blob([content], { type: 'application/json' });
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = 'logs.json';
-            a.click();
-        }
-
-        applyFilters() {
-            const filterValue = this.filterSelect.value;
-            const searchValue = this.searchInput.value.toLowerCase();
-            Array.from(this.popupContent.children).forEach(logEntry => {
-                const logType = logEntry.dataset.type;
-                const matchesFilter = filterValue === 'all' || filterValue === logType;
-                const textContent = logEntry.innerText.toLowerCase();
-                const matchesSearch = textContent.indexOf(searchValue) !== -1;
-                logEntry.style.display = matchesFilter && matchesSearch ? '' : 'none';
-            });
+        getLogicCode(block) {
+            // Extract the logic from the blocks inside the custom block
+            // This will just be a placeholder logic for now
+            return block ? block.toString() : 'No logic provided';
         }
     }
 
+    // Register the extension
     Scratch.extensions.register(new LogsExtension());
+
 })(Scratch);
