@@ -3,7 +3,7 @@
 
     class LogsExtension {
         constructor() {
-            // Stocke les logs sous forme d'objets { type, title, description, timestamp }
+            // Store logs as objects { type, title, description, timestamp }
             this.logs = [];
             this.popup = null;
             this.popupContent = null;
@@ -67,21 +67,17 @@
                         }
                     },
                     {
-                        opcode: 'execLogic',
-                        blockType: Scratch.BlockType.HAT,
-                        text: 'When execute logic [TITLE] as [TYPE] then %c',
+                        opcode: 'logBlock',
+                        blockType: Scratch.BlockType.CONTROL,
+                        text: 'Log Block [LOG_TYPE] [STACK]',
                         arguments: {
-                            TITLE: {
+                            LOG_TYPE: {
                                 type: Scratch.ArgumentType.STRING,
-                                defaultValue: 'Logic Title'
-                            },
-                            TYPE: {
-                                type: Scratch.ArgumentType.STRING,
-                                menu: 'logicType',
+                                menu: 'logTypes',
                                 defaultValue: 'LOG'
                             },
-                            SUBSTACK: {
-                                type: Scratch.ArgumentType.STACK
+                            STACK: {
+                                type: Scratch.ArgumentType.STATEMENT
                             }
                         }
                     },
@@ -107,15 +103,14 @@
                     }
                 ],
                 menus: {
-                    logicType: {
-                        items: ['LOG', 'WARNING', 'ERROR']
-                    }
+                    logTypes: ['LOG', 'WARNING', 'ERROR']
                 }
             };
         }
 
         showLogs() {
             if (!this.popup) {
+                // Create main popup container with a style inspired by Lunar Unity Console v1.8.1
                 this.popup = document.createElement('div');
                 this.popup.style.position = 'fixed';
                 this.popup.style.top = '50%';
@@ -134,6 +129,7 @@
                 this.popup.style.display = 'none';
                 this.popup.style.fontFamily = '"Roboto Mono", Consolas, monospace';
 
+                // Close button: repositioned closer to the edge
                 const closeButton = document.createElement('span');
                 closeButton.innerHTML = '&times;';
                 closeButton.style.position = 'absolute';
@@ -154,12 +150,14 @@
                 });
                 this.popup.appendChild(closeButton);
 
+                // Control bar: filter, search, and export buttons
                 const controlsBar = document.createElement('div');
                 controlsBar.style.marginBottom = '15px';
                 controlsBar.style.display = 'flex';
                 controlsBar.style.alignItems = 'center';
                 controlsBar.style.gap = '10px';
 
+                // Filter dropdown
                 this.filterSelect = document.createElement('select');
                 this.filterSelect.style.padding = '6px';
                 this.filterSelect.style.borderRadius = '4px';
@@ -179,7 +177,9 @@
                     this.filterSelect.appendChild(optionElem);
                 });
                 this.filterSelect.addEventListener('change', () => this.applyFilters());
+                controlsBar.appendChild(this.filterSelect);
 
+                // Search bar
                 this.searchInput = document.createElement('input');
                 this.searchInput.type = 'text';
                 this.searchInput.placeholder = 'Search...';
@@ -190,7 +190,9 @@
                 this.searchInput.style.backgroundColor = '#2c2c2c';
                 this.searchInput.style.color = '#dcdcdc';
                 this.searchInput.addEventListener('input', () => this.applyFilters());
+                controlsBar.appendChild(this.searchInput);
 
+                // Export buttons
                 const exportTxtButton = document.createElement('button');
                 exportTxtButton.innerText = 'Export TXT';
                 exportTxtButton.style.padding = '6px 12px';
@@ -207,6 +209,7 @@
                     exportTxtButton.style.backgroundColor = '#27ae60';
                 });
                 exportTxtButton.addEventListener('click', () => this.exportLogsTxt());
+                controlsBar.appendChild(exportTxtButton);
 
                 const exportJsonButton = document.createElement('button');
                 exportJsonButton.innerText = 'Export JSON';
@@ -224,13 +227,11 @@
                     exportJsonButton.style.backgroundColor = '#27ae60';
                 });
                 exportJsonButton.addEventListener('click', () => this.exportLogsJson());
-
-                controlsBar.appendChild(this.filterSelect);
-                controlsBar.appendChild(this.searchInput);
-                controlsBar.appendChild(exportTxtButton);
                 controlsBar.appendChild(exportJsonButton);
+
                 this.popup.appendChild(controlsBar);
 
+                // Logs container
                 this.popupContent = document.createElement('div');
                 this.popupContent.style.overflowY = 'auto';
                 this.popupContent.style.height = 'calc(100% - 80px)';
@@ -255,100 +256,210 @@
             this.addLog('ERROR', args.TITLE, args.DESCRIPTION);
         }
 
-        execLogic(args) {
-            let logicStr = "";
-            try {
-                logicStr = args.SUBSTACK.toString();
-            } catch (e) {
-                logicStr = "[Error in stack]";
+        logBlock(args, util) {
+            const logType = args.LOG_TYPE;
+            let description = '';
+
+            if (util.stackFrame.childBlocks) {
+                description = this.extractBlockInfo(util.stackFrame.childBlocks).join('\n');
             }
-            this.addLog(args.TYPE, args.TITLE, logicStr);
+
+            this.addLog(logType, 'Block Execution', description);
         }
 
-        clearLogs() {
-            this.logs = [];
-            this.applyFilters();
-        }
+        // Helper function to extract information from the blocks in the stack
+        extractBlockInfo(blocks) {
+            const blockInfo = [];
 
-        closeLogs() {
-            this.popup.style.display = 'none';
+            for (const block of blocks) {
+                let blockText = block.opcode;
+
+                if (block.fields) {
+                    for (const fieldName in block.fields) {
+                        blockText += ` ${fieldName}: ${block.fields[fieldName].value}`;
+                    }
+                }
+
+                if (block.inputs) {
+                    for (const inputName in block.inputs) {
+                        const input = block.inputs[inputName];
+                        if (input.block) {
+                            blockText += ` ${inputName}: ${input.block.opcode}`;
+                        }
+                    }
+                }
+
+                blockInfo.push(blockText);
+
+                if (block.next) {
+                    const nextBlock = blocks.find(b => b.id === block.next);
+                    if (nextBlock) {
+                        blockInfo.push(...this.extractBlockInfo([nextBlock]));
+                    }
+                }
+            }
+
+            return blockInfo;
         }
 
         addLog(type, title, description) {
             const timestamp = new Date().toISOString();
+            const logEntry = document.createElement('div');
+            logEntry.style.padding = '12px';
+            logEntry.style.marginBottom = '12px';
+            logEntry.style.borderRadius = '4px';
+            logEntry.style.backgroundColor = '#2c2c2c';
+            logEntry.style.borderLeft = `4px solid ${this.getLogColor(type)}`;
+            logEntry.dataset.type = type;
+
+            const headerDiv = document.createElement('div');
+            headerDiv.style.display = 'flex';
+            headerDiv.style.justifyContent = 'space-between';
+            headerDiv.style.alignItems = 'center';
+            headerDiv.style.cursor = description && description.trim() !== '' ? 'pointer' : 'default';
+
+            const headerLeft = document.createElement('div');
+            headerLeft.style.display = 'flex';
+            headerLeft.style.alignItems = 'center';
+
+            const logType = document.createElement('span');
+            logType.style.fontWeight = 'bold';
+            logType.style.color = this.getLogColor(type);
+            logType.innerText = `[${type}]`;
+            headerLeft.appendChild(logType);
+
+            const logTime = document.createElement('span');
+            logTime.style.color = '#aaa';
+            logTime.style.fontSize = '12px';
+            logTime.style.marginLeft = '10px';
+            logTime.innerText = ` [${timestamp}]`;
+            headerLeft.appendChild(logTime);
+
+            const logTitle = document.createElement('span');
+            logTitle.style.marginLeft = '10px';
+            // Set title text color explicitly to white
+            logTitle.style.color = '#fff';
+            logTitle.innerText = title;
+            headerLeft.appendChild(logTitle);
+
+            headerDiv.appendChild(headerLeft);
+
+            // Copy button
+            const copyButton = document.createElement('button');
+            copyButton.innerText = 'Copy';
+            copyButton.style.fontSize = '12px';
+            copyButton.style.padding = '4px 8px';
+            copyButton.style.border = 'none';
+            copyButton.style.borderRadius = '4px';
+            copyButton.style.backgroundColor = '#2980b9';
+            copyButton.style.color = '#fff';
+            copyButton.style.cursor = 'pointer';
+            copyButton.style.transition = 'background-color 0.2s';
+            copyButton.addEventListener('mouseover', () => {
+                copyButton.style.backgroundColor = '#3498db';
+            });
+            copyButton.addEventListener('mouseout', () => {
+                copyButton.style.backgroundColor = '#2980b9';
+            });
+            copyButton.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const textToCopy = `[${type}] ${title}\n${description}`;
+                navigator.clipboard.writeText(textToCopy);
+            });
+            headerDiv.appendChild(copyButton);
+
+            logEntry.appendChild(headerDiv);
+
+            let contentDiv = null;
+            if (description && description.trim() !== '') {
+                contentDiv = document.createElement('div');
+                contentDiv.style.marginTop = '8px';
+                contentDiv.style.paddingLeft = '20px';
+                contentDiv.style.display = 'none';
+                contentDiv.style.color = '#ccc';
+                contentDiv.innerText = description;
+                logEntry.appendChild(contentDiv);
+
+                headerDiv.addEventListener('click', () => {
+                    contentDiv.style.display = contentDiv.style.display === 'none' ? 'block' : 'none';
+                });
+            }
+
+            this.popupContent.appendChild(logEntry);
             this.logs.push({ type, title, description, timestamp });
+            this.popupContent.scrollTop = this.popupContent.scrollHeight;
             this.applyFilters();
         }
 
-        applyFilters() {
-            const filter = this.filterSelect.value;
-            const searchText = this.searchInput.value.toLowerCase();
-            const filteredLogs = this.logs.filter(log => {
-                const matchType = filter === 'all' || log.type === filter;
-                const matchSearch = log.title.toLowerCase().includes(searchText) || log.description.toLowerCase().includes(searchText);
-                return matchType && matchSearch;
-            });
-
-            this.updateLogsDisplay(filteredLogs);
+        getLogColor(type) {
+            switch (type) {
+                case 'LOG':
+                    return '#3498db';
+                case 'WARNING':
+                    return '#f39c12';
+                case 'ERROR':
+                    return '#e74c3c';
+                default:
+                    return '#dcdcdc';
+            }
         }
 
-        updateLogsDisplay(filteredLogs) {
+        clearLogs() {
+            this.logs = [];
             this.popupContent.innerHTML = '';
-            filteredLogs.forEach(log => {
-                const logElement = document.createElement('div');
-                logElement.style.marginBottom = '10px';
-                logElement.style.padding = '10px';
-                logElement.style.borderRadius = '6px';
-                logElement.style.border = '1px solid #444';
-                logElement.style.backgroundColor = '#2c2c2c';
-                logElement.style.color = '#dcdcdc';
-                logElement.style.transition = 'background-color 0.2s';
-                logElement.addEventListener('mouseover', () => {
-                    logElement.style.backgroundColor = '#333';
-                });
-                logElement.addEventListener('mouseout', () => {
-                    logElement.style.backgroundColor = '#2c2c2c';
-                });
+        }
 
-                const typeElement = document.createElement('strong');
-                typeElement.innerText = `[${log.type}] `;
-                logElement.appendChild(typeElement);
-
-                const titleElement = document.createElement('span');
-                titleElement.innerText = log.title;
-                logElement.appendChild(titleElement);
-
-                const descElement = document.createElement('p');
-                descElement.innerText = log.description;
-                logElement.appendChild(descElement);
-
-                const timestampElement = document.createElement('span');
-                timestampElement.innerText = ` (${log.timestamp})`;
-                timestampElement.style.fontSize = '0.8em';
-                timestampElement.style.color = '#aaa';
-                logElement.appendChild(timestampElement);
-
-                this.popupContent.appendChild(logElement);
-            });
+        closeLogs() {
+            if (this.popup) {
+                this.popup.style.display = 'none';
+            }
         }
 
         exportLogsTxt() {
-            const logsTxt = this.logs.map(log => `[${log.type}] ${log.title}\n${log.description}\n(${log.timestamp})\n`).join('\n');
-            const blob = new Blob([logsTxt], { type: 'text/plain' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = 'logs.txt';
-            link.click();
+            let content = '';
+            this.logs.forEach(log => {
+                content += `[${log.type}] ${log.title} ${log.timestamp}\n${log.description}\n\n`;
+            });
+            this.downloadFile('logs.txt', content);
         }
 
         exportLogsJson() {
-            const jsonBlob = new Blob([JSON.stringify(this.logs, null, 2)], { type: 'application/json' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(jsonBlob);
-            link.download = 'logs.json';
-            link.click();
+            const json = JSON.stringify(this.logs, null, 2);
+            this.downloadFile('logs.json', json);
+        }
+
+        downloadFile(filename, content) {
+            const element = document.createElement('a');
+            element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(content));
+            element.setAttribute('download', filename);
+
+            element.style.display = 'none';
+            document.body.appendChild(element);
+
+            element.click();
+
+            document.body.removeChild(element);
+        }
+
+        applyFilters() {
+            const filterValue = this.filterSelect.value;
+            const searchTerm = this.searchInput.value.toLowerCase();
+
+            Array.from(this.popupContent.children).forEach(logEntry => {
+                const logType = logEntry.dataset.type;
+                const logText = logEntry.innerText.toLowerCase();
+
+                const typeMatch = filterValue === 'all' || logType === filterValue;
+                const searchMatch = searchTerm === '' || logText.includes(searchTerm);
+
+                if (typeMatch && searchMatch) {
+                    logEntry.style.display = 'block';
+                } else {
+                    logEntry.style.display = 'none';
+                }
+            });
         }
     }
 
     Scratch.extensions.register(new LogsExtension());
-})(Scratch);
+}(Scratch));
