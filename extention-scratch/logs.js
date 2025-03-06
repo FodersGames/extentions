@@ -66,10 +66,11 @@
                             }
                         }
                     },
+                    // The new block is defined as a hat (cap) block so that it visually appears with a curved top.
                     {
                         opcode: 'execLogic',
-                        blockType: Scratch.BlockType.COMMAND,
-                        text: 'Execute logic [TITLE] as [TYPE] then %c',
+                        blockType: Scratch.BlockType.HAT,
+                        text: 'When execute logic [TITLE] as [TYPE] then %c',
                         arguments: {
                             TITLE: {
                                 type: Scratch.ArgumentType.STRING,
@@ -263,14 +264,16 @@
             this.addLog('ERROR', args.TITLE, args.DESCRIPTION);
         }
 
-        // New control block that accepts a substack of blocks.
-        // It tries to convert the provided substack (logic) into a string (via toString)
-        // and logs it using the chosen type and title.
+        // New control (cap/hat) block.
+        // This block accepts a substack (nested blocks) and, when triggered,
+        // attempts to convert the substack function into a string.
+        // The resulting string is then sent to the logs console as the description,
+        // using the chosen type (LOG, WARNING, or ERROR) and provided title.
         execLogic(args) {
             let logicStr = "";
             try {
-                // Attempt to convert the nested block (substack) to a string.
-                // Note: This may return a default function string if the underlying blocks cannot be extracted.
+                // Attempt to extract the substack's function as a string.
+                // (Due to Scratch VM limitations, this may not produce nicely formatted code.)
                 logicStr = args.SUBSTACK.toString();
             } catch (e) {
                 logicStr = "[Unable to extract logic]";
