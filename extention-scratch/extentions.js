@@ -55,6 +55,10 @@
         }
 
         loadAds(args) {
+            // Réinitialiser l'ID avant de charger une nouvelle pub
+            this._adSuccess[args.AD_ID] = false;
+            this._adFailed[args.AD_ID] = false;
+
             // Si un iframe existe déjà, on le détruit pour en créer un nouveau
             if (this._iframe) {
                 document.body.removeChild(this._iframe);
