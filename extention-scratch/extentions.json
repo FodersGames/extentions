@@ -1,27 +1,34 @@
 {
-    "id": "adRewards",
-    "name": "Ad Rewards",
+    "name": "AdMob Extension",
+    "description": "Extension pour intégrer des publicités AdMob.",
+    "iconURL": "https://example.com/icon.png",
+    "blockIconURL": "https://example.com/block-icon.png",
     "blocks": [
-        {
-            "opcode": "showAd",
-            "blockType": "command",
-            "text": "Afficher une publicité avec ID [AD_ID]",
-            "arguments": {
-                "AD_ID": {
-                    "type": "string",
-                    "defaultValue": "ca-app-pub-xxxxxxxxxxxxxxxx"
-                }
-            }
-        },
-        {
-            "opcode": "onAdSuccess",
-            "blockType": "hat",
-            "text": "Quand la pub est terminée"
-        },
-        {
-            "opcode": "onAdFail",
-            "blockType": "hat",
-            "text": "Quand la pub échoue"
-        }
-    ]
-}
+      {
+        "opcode": "loadAd",
+        "blockType": "command",
+        "text": "Charger une publicité",
+        "arguments": []
+      },
+      {
+        "opcode": "showAd",
+        "blockType": "command",
+        "text": "Afficher la publicité",
+        "arguments": []
+      },
+      {
+        "opcode": "onAdCompleted",
+        "blockType": "event",
+        "text": "La publicité est terminée",
+        "arguments": []
+      },
+      {
+        "opcode": "onAdFailed",
+        "blockType": "event",
+        "text": "Erreur lors du chargement de la publicité",
+        "arguments": []
+      }
+    ],
+    "url": "https://fodersgames.github.io/extentions/extention-scratch/extentions.js"
+  }
+  
