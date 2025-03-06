@@ -69,20 +69,19 @@
                     {
                         opcode: 'execLogic',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: 'Execute logic [TITLE] [LOGIC] as [TYPE]',
+                        text: 'Execute logic [TITLE] as [TYPE] then %c',
                         arguments: {
                             TITLE: {
                                 type: Scratch.ArgumentType.STRING,
                                 defaultValue: 'Logic Title'
                             },
-                            LOGIC: {
-                                type: Scratch.ArgumentType.STRING,
-                                defaultValue: 'console.log("Hello, World!");'
-                            },
                             TYPE: {
                                 type: Scratch.ArgumentType.STRING,
                                 menu: 'logicType',
                                 defaultValue: 'LOG'
+                            },
+                            SUBSTACK: {
+                                type: Scratch.ArgumentType.STACK
                             }
                         }
                     },
@@ -251,7 +250,7 @@
             this.applyFilters();
         }
 
-        // Blocks log, warn, error, and the new execLogic block
+        // Standard logging blocks
         log(args) {
             this.addLog('LOG', args.TITLE, args.DESCRIPTION);
         }
@@ -264,9 +263,19 @@
             this.addLog('ERROR', args.TITLE, args.DESCRIPTION);
         }
 
+        // New control block that accepts a substack of blocks.
+        // It tries to convert the provided substack (logic) into a string (via toString)
+        // and logs it using the chosen type and title.
         execLogic(args) {
-            // Send the provided logic (code snippet) as the description using the chosen type.
-            this.addLog(args.TYPE, args.TITLE, args.LOGIC);
+            let logicStr = "";
+            try {
+                // Attempt to convert the nested block (substack) to a string.
+                // Note: This may return a default function string if the underlying blocks cannot be extracted.
+                logicStr = args.SUBSTACK.toString();
+            } catch (e) {
+                logicStr = "[Unable to extract logic]";
+            }
+            this.addLog(args.TYPE, args.TITLE, logicStr);
         }
 
         addLog(type, title, description) {
