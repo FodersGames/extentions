@@ -111,12 +111,12 @@
                 this.popup.style.display = 'none';
                 this.popup.style.fontFamily = '"Roboto Mono", Consolas, monospace';
 
-                // Close button
+                // Close button: repositioned closer to the edge
                 const closeButton = document.createElement('span');
                 closeButton.innerHTML = '&times;';
                 closeButton.style.position = 'absolute';
-                closeButton.style.top = '15px';
-                closeButton.style.right = '15px';
+                closeButton.style.top = '10px';
+                closeButton.style.right = '10px';
                 closeButton.style.fontSize = '28px';
                 closeButton.style.color = '#e74c3c';
                 closeButton.style.cursor = 'pointer';
@@ -273,6 +273,8 @@
 
             const logTitle = document.createElement('span');
             logTitle.style.marginLeft = '10px';
+            // Set title text color explicitly to white
+            logTitle.style.color = '#fff';
             logTitle.innerText = title;
             headerLeft.appendChild(logTitle);
 
