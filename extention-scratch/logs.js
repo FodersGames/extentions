@@ -3,7 +3,7 @@
 
     class LogsExtension {
         constructor() {
-            // Store logs as objects { type, title, description, timestamp }
+            // Stocke les logs sous forme d'objets { type, title, description, timestamp }
             this.logs = [];
             this.popup = null;
             this.popupContent = null;
@@ -66,11 +66,11 @@
                             }
                         }
                     },
-                    // New cap (control) block.
+                    // Nouveau bloc cap (hat block) pour encapsuler une logique (sous-blocs)
                     {
                         opcode: 'execLogic',
-                        blockType: Scratch.BlockType.COMMAND,
-                        text: 'Execute logic [TITLE] as [TYPE] then %c',
+                        blockType: Scratch.BlockType.HAT,
+                        text: 'When execute logic [TITLE] as [TYPE] then %c',
                         arguments: {
                             TITLE: {
                                 type: Scratch.ArgumentType.STRING,
@@ -81,7 +81,7 @@
                                 menu: 'logicType',
                                 defaultValue: 'LOG'
                             },
-                            // The %c placeholder creates a substack area (a C-shaped cap block)
+                            // %c permet d’ajouter une zone de sous-blocs (cap)
                             SUBSTACK: {
                                 type: Scratch.ArgumentType.STACK
                             }
@@ -118,7 +118,7 @@
 
         showLogs() {
             if (!this.popup) {
-                // Create main popup container inspired by Lunar Unity Console v1.8.1
+                // Création de la popup (style inspiré de Lunar Unity Console v1.8.1)
                 this.popup = document.createElement('div');
                 this.popup.style.position = 'fixed';
                 this.popup.style.top = '50%';
@@ -137,7 +137,7 @@
                 this.popup.style.display = 'none';
                 this.popup.style.fontFamily = '"Roboto Mono", Consolas, monospace';
 
-                // Close button
+                // Bouton de fermeture
                 const closeButton = document.createElement('span');
                 closeButton.innerHTML = '&times;';
                 closeButton.style.position = 'absolute';
@@ -158,14 +158,14 @@
                 });
                 this.popup.appendChild(closeButton);
 
-                // Control bar: filter, search, and export buttons
+                // Barre de contrôle : filtre, recherche et boutons d'export
                 const controlsBar = document.createElement('div');
                 controlsBar.style.marginBottom = '15px';
                 controlsBar.style.display = 'flex';
                 controlsBar.style.alignItems = 'center';
                 controlsBar.style.gap = '10px';
 
-                // Filter dropdown
+                // Menu déroulant pour le filtrage
                 this.filterSelect = document.createElement('select');
                 this.filterSelect.style.padding = '6px';
                 this.filterSelect.style.borderRadius = '4px';
@@ -186,7 +186,7 @@
                 });
                 this.filterSelect.addEventListener('change', () => this.applyFilters());
 
-                // Search bar
+                // Barre de recherche
                 this.searchInput = document.createElement('input');
                 this.searchInput.type = 'text';
                 this.searchInput.placeholder = 'Search...';
@@ -198,7 +198,7 @@
                 this.searchInput.style.color = '#dcdcdc';
                 this.searchInput.addEventListener('input', () => this.applyFilters());
 
-                // Export buttons
+                // Boutons d'export
                 const exportTxtButton = document.createElement('button');
                 exportTxtButton.innerText = 'Export TXT';
                 exportTxtButton.style.padding = '6px 12px';
@@ -239,7 +239,7 @@
                 controlsBar.appendChild(exportJsonButton);
                 this.popup.appendChild(controlsBar);
 
-                // Logs container
+                // Conteneur des logs
                 this.popupContent = document.createElement('div');
                 this.popupContent.style.overflowY = 'auto';
                 this.popupContent.style.height = 'calc(100% - 80px)';
@@ -252,7 +252,7 @@
             this.applyFilters();
         }
 
-        // Standard logging blocks
+        // Blocs standards de log
         log(args) {
             this.addLog('LOG', args.TITLE, args.DESCRIPTION);
         }
@@ -265,14 +265,13 @@
             this.addLog('ERROR', args.TITLE, args.DESCRIPTION);
         }
 
-        // New cap (control) block.
-        // When triggered, it converts its nested substack to a string (if possible)
-        // and logs it using the selected type and provided title.
+        // Nouveau bloc cap : on y place des sous-blocs (logique)
+        // Lorsqu'il est déclenché, il tente d'extraire la logique (via toString) des blocs imbriqués
+        // et l'envoie dans la console avec le titre et le type choisis.
         execLogic(args) {
             let logicStr = "";
             try {
-                // Convert the substack callback to string.
-                // (Note: The extracted string may not perfectly represent the original blocks.)
+                // Conversion de la fonction callback représentant le sous-ensemble de blocs en chaîne
                 logicStr = args.SUBSTACK.toString();
             } catch (e) {
                 logicStr = "[Unable to extract logic]";
@@ -321,7 +320,7 @@
 
             headerDiv.appendChild(headerLeft);
 
-            // Copy button
+            // Bouton de copie
             const copyButton = document.createElement('button');
             copyButton.innerText = 'Copy';
             copyButton.style.fontSize = '12px';
