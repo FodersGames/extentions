@@ -67,6 +67,33 @@
                         }
                     },
                     {
+                        opcode: 'addCustomLog',
+                        blockType: Scratch.BlockType.COMMAND,
+                        text: 'Add Custom Log [MESSAGE]',
+                        arguments: {
+                            MESSAGE: {
+                                type: Scratch.ArgumentType.STRING,
+                                defaultValue: 'Custom Log Message'
+                            }
+                        }
+                    },
+                    {
+                        opcode: 'extractAndLogBlocks',
+                        blockType: Scratch.BlockType.COMMAND,
+                        text: 'Extract and Log Blocks [TITLE] [LOG_TYPE]',
+                        arguments: {
+                            TITLE: {
+                                type: Scratch.ArgumentType.STRING,
+                                defaultValue: 'Script Blocks'
+                            },
+                            LOG_TYPE: {
+                                type: Scratch.ArgumentType.STRING,
+                                menu: 'logTypes',
+                                defaultValue: 'log'
+                            }
+                        }
+                    },
+                    {
                         opcode: 'clearLogs',
                         blockType: Scratch.BlockType.COMMAND,
                         text: 'Clear logs'
@@ -86,10 +113,51 @@
                         blockType: Scratch.BlockType.COMMAND,
                         text: 'Export logs as JSON'
                     }
-                ]
+                ],
+                menus: {
+                    logTypes: {
+                        acceptReporters: true,
+                        items: ['log', 'warn', 'error']
+                    }
+                }
             };
         }
-    
+
+        extractAndLogBlocks(args, util) {
+            const topBlock = util.thread.topBlock;
+
+            if (!topBlock) {
+                return; // Exit if there's no script running this block
+            }
+
+            const blockIds = [];
+            let currentBlockId = topBlock;
+
+            while (currentBlockId) {
+                const block = util.runtime.blocks.getBlock(currentBlockId);
+                if (!block) break;  // Important: Stop if block doesn't exist
+
+                blockIds.push(block.opcode); // Store the opcode
+
+                currentBlockId = block.next;  // Move to the next block
+            }
+
+            const logMessage = blockIds.join(', ');
+            const logType = args.LOG_TYPE.toUpperCase();
+
+            switch (logType) {
+                case 'WARN':
+                    this.warn({ TITLE: args.TITLE, DESCRIPTION: logMessage });
+                    break;
+                case 'ERROR':
+                    this.error({ TITLE: args.TITLE, DESCRIPTION: logMessage });
+                    break;
+                default:
+                    this.log({ TITLE: args.TITLE, DESCRIPTION: logMessage });
+                    break;
+            }
+        }
+
         showLogs() {
             if (!this.popup) {
                 this.createPopup();  // Call the popup creation function
@@ -231,6 +299,10 @@
             this.addLog('ERROR', args.TITLE, args.DESCRIPTION);
         }
 
+        addCustomLog(args) {
+            this.addLog('LOG', 'Custom Log', args.MESSAGE);
+        }
+
         addLog(type, title, description) {
             const timestamp = new Date().toISOString();
             const logEntry = document.createElement('div');
@@ -273,7 +345,49 @@
 
             headerDiv.appendChild(headerLeft);
 
+            // Copy button
+            const copyButton = document.createElement('button');
+            copyButton.innerText = 'Copy';
+            copyButton.style.fontSize = '12px';
+            copyButton.style.padding = '4px 8px';
+            copyButton.style.border = 'none';
+            copyButton.style.borderRadius = '4px';
+            copyButton.style.backgroundColor = '#5c6370';
+            copyButton.style.color = '#abb2bf';
+            copyButton.style.cursor = 'pointer';
+            copyButton.style.transition = 'background-color 0.2s';
+            copyButton.addEventListener('mouseover', () => {
+                copyButton.style.backgroundColor = '#6b7280';
+            });
+            copyButton.addEventListener('mouseout', () => {
+                copyButton.style.backgroundColor = '#5c6370';
+            });
+            copyButton.addEventListener('click', (e) => {
+                e.stopPropagation();
+                navigator.clipboard.writeText(description).then(() => {
+                    console.log('Description copied to clipboard');
+                }).catch(err => {
+                    console.error('Failed to copy description: ', err);
+                });
+            });
+            headerDiv.appendChild(copyButton);
+
             logEntry.appendChild(headerDiv);
+
+            if (description && description.trim() !== '') {
+                const descriptionDiv = document.createElement('div');
+                descriptionDiv.style.marginTop = '8px';
+                descriptionDiv.style.color = '#abb2bf';
+                descriptionDiv.style.fontSize = '14px';
+                descriptionDiv.style.display = 'none'; // Initially hidden
+                descriptionDiv.innerText = description;
+
+                logEntry.appendChild(descriptionDiv);
+
+                headerDiv.addEventListener('click', () => {
+                    descriptionDiv.style.display = descriptionDiv.style.display === 'none' ? 'block' : 'none';
+                });
+            }
 
             this.logs.push({ type, title, description, timestamp });
             this.popupContent.appendChild(logEntry);
