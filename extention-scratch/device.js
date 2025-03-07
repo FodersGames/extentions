@@ -57,7 +57,7 @@ class SystemInfo {
           {
             opcode: 'getGPU',
             blockType: 'reporter',
-            text: 'GPU'
+            text: 'GPU Info'
           },
           {
             opcode: 'getNetworkType',
@@ -65,9 +65,9 @@ class SystemInfo {
             text: 'Network Connection Type'
           },
           {
-            opcode: 'getStorageSpace',
+            opcode: 'getStorageEstimate',
             blockType: 'reporter',
-            text: 'Available Storage Space (GB)'
+            text: 'Estimated Storage (GB)'
           },
           {
             opcode: 'getProcessorArchitecture',
@@ -157,49 +157,65 @@ class SystemInfo {
     }
   
     getGPU() {
-      // Note: This is not directly accessible via JavaScript in most browsers.
-      // It requires additional libraries or native code.
-      return "Not available";
+      const canvas = document.createElement('canvas');
+      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+      if (gl) {
+        const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+        return debugInfo ? gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) : 'WebGL supported, but GPU info not available';
+      }
+      return 'WebGL not supported';
     }
   
     getNetworkType() {
-      const connection = navigator.connection;
-      if (connection) {
-        if (connection.type === 'wifi') return "Wi-Fi";
-        if (connection.type === 'cellular') return "Cellular";
-        if (connection.type === 'ethernet') return "Ethernet";
+      if ('connection' in navigator) {
+        const connection = navigator.connection;
+        if (connection.type) return connection.type;
+        if (connection.effectiveType) return connection.effectiveType;
       }
       return "Unknown";
     }
   
-    getStorageSpace() {
-      // Note: This is not directly accessible via JavaScript in most browsers.
-      // It requires additional permissions or native code.
+    async getStorageEstimate() {
+      if ('storage' in navigator && 'estimate' in navigator.storage) {
+        try {
+          const estimate = await navigator.storage.estimate();
+          return (estimate.quota / (1024 * 1024 * 1024)).toFixed(2) + " GB";
+        } catch (e) {
+          return "Estimation failed";
+        }
+      }
       return "Not available";
     }
   
     getProcessorArchitecture() {
-      // Note: This is not directly accessible via JavaScript in most browsers.
-      // It requires additional libraries or native code.
-      return "Not available";
+      const userAgent = navigator.userAgent;
+      if (userAgent.includes('Win64') || userAgent.includes('x64')) return '64-bit';
+      if (userAgent.includes('Win32') || userAgent.includes('WOW64')) return '32-bit';
+      if (userAgent.includes('x86_64') || userAgent.includes('x86-64')) return '64-bit';
+      if (userAgent.includes('i686') || userAgent.includes('i386')) return '32-bit';
+      return 'Unknown';
     }
   
     isTouchScreen() {
       return 'ontouchstart' in window || navigator.maxTouchPoints > 0 ? "Yes" : "No";
     }
   
-    getBatteryChargingStatus() {
+    async getBatteryChargingStatus() {
       if ('getBattery' in navigator) {
-        return navigator.getBattery().then(battery => {
+        try {
+          const battery = await navigator.getBattery();
           return battery.charging ? "Yes" : "No";
-        });
+        } catch (e) {
+          return "Not available";
+        }
       }
       return "Not available";
     }
   
     getInstalledPlugins() {
-      // Note: This is not directly accessible via JavaScript in most browsers.
-      // It requires additional permissions or native code.
+      if (navigator.plugins) {
+        return Array.from(navigator.plugins).map(p => p.name).join(', ');
+      }
       return "Not available";
     }
   }
