@@ -53,6 +53,41 @@ class SystemInfo {
             opcode: 'getDeviceType',
             blockType: 'reporter',
             text: 'Device Type'
+          },
+          {
+            opcode: 'getGPU',
+            blockType: 'reporter',
+            text: 'GPU'
+          },
+          {
+            opcode: 'getNetworkType',
+            blockType: 'reporter',
+            text: 'Network Connection Type'
+          },
+          {
+            opcode: 'getStorageSpace',
+            blockType: 'reporter',
+            text: 'Available Storage Space (GB)'
+          },
+          {
+            opcode: 'getProcessorArchitecture',
+            blockType: 'reporter',
+            text: 'Processor Architecture'
+          },
+          {
+            opcode: 'isTouchScreen',
+            blockType: 'reporter',
+            text: 'Is Touch Screen?'
+          },
+          {
+            opcode: 'getBatteryChargingStatus',
+            blockType: 'reporter',
+            text: 'Is Battery Charging?'
+          },
+          {
+            opcode: 'getInstalledPlugins',
+            blockType: 'reporter',
+            text: 'Installed Plugins'
           }
         ]
       };
@@ -119,6 +154,53 @@ class SystemInfo {
         return "Mobile";
       }
       return "Desktop";
+    }
+  
+    getGPU() {
+      // Note: This is not directly accessible via JavaScript in most browsers.
+      // It requires additional libraries or native code.
+      return "Not available";
+    }
+  
+    getNetworkType() {
+      const connection = navigator.connection;
+      if (connection) {
+        if (connection.type === 'wifi') return "Wi-Fi";
+        if (connection.type === 'cellular') return "Cellular";
+        if (connection.type === 'ethernet') return "Ethernet";
+      }
+      return "Unknown";
+    }
+  
+    getStorageSpace() {
+      // Note: This is not directly accessible via JavaScript in most browsers.
+      // It requires additional permissions or native code.
+      return "Not available";
+    }
+  
+    getProcessorArchitecture() {
+      // Note: This is not directly accessible via JavaScript in most browsers.
+      // It requires additional libraries or native code.
+      return "Not available";
+    }
+  
+    isTouchScreen() {
+      return 'ontouchstart' in window || navigator.maxTouchPoints > 0 ? "Yes" : "No";
+    }
+  
+    getBatteryChargingStatus() {
+      if ('getBattery' in navigator) {
+        return navigator.getBattery().then(battery => {
+          return battery.charging ? "Yes" : "No";
+        });
+      }
+      return "Not available";
+    }
+  
+    getInstalledPlugins() {
+      // Note: This is not directly accessible via JavaScript in most browsers.
+      // It requires additional permissions or native code.
+      return "Not available";
     }
   }
   
