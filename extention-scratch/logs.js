@@ -89,10 +89,10 @@
                 ]
             };
         }
-    
+
         showLogs() {
             if (!this.popup) {
-                this.createPopup();  // Call the popup creation function
+                this.createPopup();
             }
             this.popup.style.display = 'block';
             this.applyFilters();
@@ -237,10 +237,10 @@
             logEntry.style.padding = '12px';
             logEntry.style.marginBottom = '12px';
             logEntry.style.borderRadius = '5px';
-            logEntry.style.backgroundColor = '#3e4451'; // Darker log entry background
+            logEntry.style.backgroundColor = '#3e4451';
             logEntry.style.borderLeft = `4px solid ${this.getLogColor(type)}`;
             logEntry.dataset.type = type;
-            logEntry.style.wordBreak = 'break-word'; // Prevent overflow
+            logEntry.style.wordBreak = 'break-word';
 
             const headerDiv = document.createElement('div');
             headerDiv.style.display = 'flex';
@@ -259,7 +259,7 @@
             headerLeft.appendChild(logTypeSpan);
 
             const logTime = document.createElement('span');
-            logTime.style.color = '#6b7280'; // Muted timestamp color
+            logTime.style.color = '#6b7280';
             logTime.style.fontSize = '12px';
             logTime.style.marginLeft = '10px';
             logTime.innerText = ` [${timestamp}]`;
@@ -273,7 +273,49 @@
 
             headerDiv.appendChild(headerLeft);
 
+            // Copy button
+            const copyButton = document.createElement('button');
+            copyButton.innerText = 'Copy';
+            copyButton.style.fontSize = '12px';
+            copyButton.style.padding = '4px 8px';
+            copyButton.style.border = 'none';
+            copyButton.style.borderRadius = '4px';
+            copyButton.style.backgroundColor = '#5c6370';
+            copyButton.style.color = '#abb2bf';
+            copyButton.style.cursor = 'pointer';
+            copyButton.style.transition = 'background-color 0.2s';
+            copyButton.addEventListener('mouseover', () => {
+                copyButton.style.backgroundColor = '#6b7280';
+            });
+            copyButton.addEventListener('mouseout', () => {
+                copyButton.style.backgroundColor = '#5c6370';
+            });
+            copyButton.addEventListener('click', (e) => {
+                e.stopPropagation();
+                navigator.clipboard.writeText(description).then(() => {
+                    console.log('Description copied to clipboard');
+                }).catch(err => {
+                    console.error('Failed to copy description: ', err);
+                });
+            });
+            headerDiv.appendChild(copyButton);
+
             logEntry.appendChild(headerDiv);
+
+            if (description && description.trim() !== '') {
+                const descriptionDiv = document.createElement('div');
+                descriptionDiv.style.marginTop = '8px';
+                descriptionDiv.style.color = '#abb2bf';
+                descriptionDiv.style.fontSize = '14px';
+                descriptionDiv.style.display = 'none'; // Initially hidden
+                descriptionDiv.innerText = description;
+
+                logEntry.appendChild(descriptionDiv);
+
+                headerDiv.addEventListener('click', () => {
+                    descriptionDiv.style.display = descriptionDiv.style.display === 'none' ? 'block' : 'none';
+                });
+            }
 
             this.logs.push({ type, title, description, timestamp });
             this.popupContent.appendChild(logEntry);
