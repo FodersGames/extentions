@@ -124,38 +124,29 @@
         }
 
         extractAndLogBlocks(args, util) {
-            const script = util.thread.topBlock;
-            if (script) {
-                let blockList = [];
-                let currentBlockId = script;
+            const topBlock = util.thread.topBlock;
 
-                while (currentBlockId) {
-                    const block = util.runtime.blocks.getBlock(currentBlockId);
-                    if (block) {
-                        blockList.push(block.opcode);
-                        currentBlockId = block.next;
-                    } else {
-                        break;
-                    }
-                }
+            if (!topBlock) {
+                return; // Exit if there's no script running this block
+            }
 
-                const logMessage = blockList.join(', ');
-                const logType = args.LOG_TYPE.toUpperCase();
+            const blockJSON = Scratch.vm.saveScript(topBlock);
+            const logMessage = JSON.stringify(blockJSON, null, 2); // Pretty print JSON
 
-                switch (logType) {
-                    case 'WARN':
-                        this.warn({ TITLE: args.TITLE, DESCRIPTION: logMessage });
-                        break;
-                    case 'ERROR':
-                        this.error({ TITLE: args.TITLE, DESCRIPTION: logMessage });
-                        break;
-                    default:
-                        this.log({ TITLE: args.TITLE, DESCRIPTION: logMessage });
-                        break;
-                }
+            const logType = args.LOG_TYPE.toUpperCase();
+
+            switch (logType) {
+                case 'WARN':
+                    this.warn({ TITLE: args.TITLE, DESCRIPTION: logMessage });
+                    break;
+                case 'ERROR':
+                    this.error({ TITLE: args.TITLE, DESCRIPTION: logMessage });
+                    break;
+                default:
+                    this.log({ TITLE: args.TITLE, DESCRIPTION: logMessage });
+                    break;
             }
         }
-
 
         showLogs() {
             if (!this.popup) {
