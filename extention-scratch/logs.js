@@ -19,7 +19,7 @@
                     {
                         opcode: 'showLogs',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: 'Show logs'
+                        text: 'Show logs popup'
                     },
                     {
                         opcode: 'log',
@@ -66,7 +66,7 @@
                             }
                         }
                     },
-                     {
+                    {
                         opcode: 'addCustomLog',
                         blockType: Scratch.BlockType.COMMAND,
                         text: 'Add Custom Log [MESSAGE]',
@@ -77,7 +77,7 @@
                             }
                         }
                     },
-                    {
+                     {
                         opcode: 'extractAndLogBlocks',
                         blockType: Scratch.BlockType.COMMAND,
                         text: 'Extract and Log Blocks [TITLE] [LOG_TYPE]',
@@ -101,7 +101,7 @@
                     {
                         opcode: 'closeLogs',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: 'Close logs'
+                        text: 'Close logs popup'
                     },
                     {
                         opcode: 'exportLogsTxt',
@@ -112,9 +112,9 @@
                         opcode: 'exportLogsJson',
                         blockType: Scratch.BlockType.COMMAND,
                         text: 'Export logs as JSON'
-                    },
+                    }
                 ],
-                menus: {
+                 menus: {
                     logTypes: {
                         acceptReporters: true,
                         items: ['log', 'warn', 'error']
@@ -123,16 +123,32 @@
             };
         }
 
-        extractAndLogBlocks(args, util) {
+       extractAndLogBlocks(args, util) {
             const topBlock = util.thread.topBlock;
 
             if (!topBlock) {
                 return; // Exit if there's no script running this block
             }
 
-            const blockJSON = Scratch.vm.saveScript(topBlock);
-            const logMessage = JSON.stringify(blockJSON, null, 2); // Pretty print JSON
+            const blockIds = [];
+            let currentBlockId = topBlock;
 
+            while (currentBlockId) {
+                blockIds.push(currentBlockId);
+                const block = util.runtime.blocks.getBlock(currentBlockId);
+                if (block && block.next) {
+                    currentBlockId = block.next;
+                } else {
+                    currentBlockId = null; // End of script
+                }
+            }
+
+            const blockOpcodes = blockIds.map(id => {
+                const block = util.runtime.blocks.getBlock(id);
+                return block ? block.opcode : 'unknown';
+            });
+
+            const logMessage = blockOpcodes.join(', ');
             const logType = args.LOG_TYPE.toUpperCase();
 
             switch (logType) {
@@ -147,6 +163,7 @@
                     break;
             }
         }
+
 
         showLogs() {
             if (!this.popup) {
