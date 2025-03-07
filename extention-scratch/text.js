@@ -2,10 +2,11 @@
     'use strict';
   
     class TextEngine {
-      constructor() {
+      constructor(runtime) {
+        this.runtime = runtime;
         this.fonts = ['Arial', 'Verdana', 'Courier', 'Times New Roman', 'Comic Sans MS'];
-        this.texts = {}; // Stocker les informations des textes créés
-        this.nextId = 0; // ID pour identifier chaque texte
+        this.texts = {};
+        this.nextId = 0;
       }
   
       getInfo() {
@@ -16,7 +17,7 @@
             {
               opcode: 'createText',
               blockType: Scratch.BlockType.COMMAND,
-              text: 'Créer texte [TEXT] avec police [FONT] taille [SIZE] couleur [COLOR]',
+              text: 'Créer texte [TEXT] avec police [FONT] taille [SIZE] couleur [COLOR] x: [X] y: [Y]',
               arguments: {
                 TEXT: {
                   type: Scratch.ArgumentType.STRING,
@@ -33,6 +34,14 @@
                 COLOR: {
                   type: Scratch.ArgumentType.COLOR,
                   defaultValue: '#000000'
+                },
+                X: {
+                  type: Scratch.ArgumentType.NUMBER,
+                  defaultValue: 0
+                },
+                Y: {
+                  type: Scratch.ArgumentType.NUMBER,
+                  defaultValue: 0
                 }
               }
             },
@@ -81,6 +90,25 @@
                 }
               }
             },
+             {
+              opcode: 'setPosition',
+              blockType: Scratch.BlockType.COMMAND,
+              text: 'Définir la position du texte [TEXT_ID] x: [X] y: [Y]',
+              arguments: {
+                TEXT_ID: {
+                  type: Scratch.ArgumentType.STRING,
+                  menu: 'textMenu'
+                },
+                X: {
+                  type: Scratch.ArgumentType.NUMBER,
+                  defaultValue: 0
+                },
+                Y: {
+                  type: Scratch.ArgumentType.NUMBER,
+                  defaultValue: 0
+                }
+              }
+            },
             {
               opcode: 'clearText',
               blockType: Scratch.BlockType.COMMAND,
@@ -106,33 +134,49 @@
       }
   
       createText(args, util) {
-        const text = args.TEXT;
-        const font = args.FONT;
-        const size = args.SIZE;
-        const color = args.COLOR;
+          const text = args.TEXT;
+          const font = args.FONT;
+          const size = args.SIZE;
+          const color = args.COLOR;
+          const x = args.X;
+          const y = args.Y;
   
-        const textElement = document.createElement('div');
-        textElement.innerText = text;
-        textElement.style.fontFamily = font;
-        textElement.style.fontSize = `${size}px`;
-        textElement.style.color = color;
-        textElement.style.position = 'absolute';
-        textElement.style.top = '0';
-        textElement.style.left = '0';
+          // Créer un canvas pour dessiner le texte
+          const canvas = document.createElement('canvas');
+          canvas.width = 480; // Largeur du canvas (modifiable)
+          canvas.height = 360; // Hauteur du canvas (modifiable)
+          canvas.style.position = 'absolute';
+          canvas.style.left = '0px';
+          canvas.style.top = '0px';
+          canvas.style.pointerEvents = 'none'; // Empêcher l'interaction avec le canvas
   
-        const stage = util.runtime.stageElement;
-        stage.appendChild(textElement);
+          // Définir le style du texte
+          const ctx = canvas.getContext('2d');
+          ctx.font = `${size}px ${font}`;
+          ctx.fillStyle = color;
+          ctx.textAlign = 'center'; // Alignement horizontal au centre
+          ctx.textBaseline = 'middle'; // Alignement vertical au milieu
   
-        const id = `text-${this.nextId++}`;
-        this.texts[id] = {
-          element: textElement,
-          font: font,
-          size: size,
-          color: color
-        };
+          // Dessiner le texte au centre du canvas
+          ctx.fillText(text, x, y);
   
-        return id; // Retourne l'ID du texte créé
+          // Ajouter le canvas au stage
+          const stage = util.runtime.stageElement;
+          stage.appendChild(canvas);
+  
+          const id = `text-${this.nextId++}`;
+          this.texts[id] = {
+              element: canvas,
+              font: font,
+              size: size,
+              color: color,
+              x: x,
+              y: y
+          };
+  
+          return id; // Retourne l'ID du texte créé
       }
+  
   
       changeFont(args) {
         const textId = args.TEXT_ID;
@@ -140,7 +184,15 @@
   
         const textInfo = this.texts[textId];
         if (textInfo) {
-          textInfo.element.style.fontFamily = font;
+          const canvas = textInfo.element;
+          const ctx = canvas.getContext('2d');
+          ctx.font = `${textInfo.size}px ${font}`;
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = textInfo.color;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(text, textInfo.x, textInfo.y);
+  
           textInfo.font = font;
         }
       }
@@ -151,7 +203,15 @@
   
         const textInfo = this.texts[textId];
         if (textInfo) {
-          textInfo.element.style.fontSize = `${size}px`;
+          const canvas = textInfo.element;
+          const ctx = canvas.getContext('2d');
+          ctx.font = `${size}px ${textInfo.font}`;
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = textInfo.color;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(text, textInfo.x, textInfo.y);
+  
           textInfo.size = size;
         }
       }
@@ -162,8 +222,37 @@
   
         const textInfo = this.texts[textId];
         if (textInfo) {
-          textInfo.element.style.color = color;
+          const canvas = textInfo.element;
+          const ctx = canvas.getContext('2d');
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = color;
+          ctx.font = `${textInfo.size}px ${textInfo.font}`;
+           ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(text, textInfo.x, textInfo.y);
+  
           textInfo.color = color;
+        }
+      }
+  
+      setPosition(args) {
+        const textId = args.TEXT_ID;
+        const x = args.X;
+        const y = args.Y;
+  
+        const textInfo = this.texts[textId];
+        if (textInfo) {
+          const canvas = textInfo.element;
+          const ctx = canvas.getContext('2d');
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = textInfo.color;
+          ctx.font = `${textInfo.size}px ${textInfo.font}`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(text, x, y);
+  
+          textInfo.x = x;
+          textInfo.y = y;
         }
       }
   
@@ -172,7 +261,8 @@
   
         const textInfo = this.texts[textId];
         if (textInfo) {
-          textInfo.element.remove(); // Supprime l'élément du DOM
+          const canvas = textInfo.element;
+          canvas.remove(); // Supprime le canvas du DOM
           delete this.texts[textId]; // Supprime l'entrée du dictionnaire
         }
       }
