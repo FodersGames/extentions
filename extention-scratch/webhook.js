@@ -26,8 +26,9 @@ class DiscordWebhook {
     sendMessage(args) {
       const message = args.MESSAGE;
       const url = args.URL;
+      const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
       
-      return fetch(url, {
+      return fetch(proxyUrl + url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
