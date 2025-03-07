@@ -19,7 +19,7 @@
                     {
                         opcode: 'showLogs',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: 'Afficher les logs'
+                        text: 'Show logs'
                     },
                     {
                         opcode: 'log',
@@ -69,18 +69,18 @@
                      {
                         opcode: 'addCustomLog',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: 'Ajouter un log personnalisé [MESSAGE]',
+                        text: 'Add Custom Log [MESSAGE]',
                         arguments: {
                             MESSAGE: {
                                 type: Scratch.ArgumentType.STRING,
-                                defaultValue: 'Message de log personnalisé'
+                                defaultValue: 'Custom Log Message'
                             }
                         }
                     },
                     {
                         opcode: 'extractAndLogBlocks',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: 'Extraire et logger les blocs [TITLE] [LOG_TYPE]',
+                        text: 'Extract and Log Blocks [TITLE] [LOG_TYPE]',
                         arguments: {
                             TITLE: {
                                 type: Scratch.ArgumentType.STRING,
@@ -96,22 +96,22 @@
                     {
                         opcode: 'clearLogs',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: 'Effacer les logs'
+                        text: 'Clear logs'
                     },
                     {
                         opcode: 'closeLogs',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: 'Fermer la fenêtre de logs'
+                        text: 'Close logs'
                     },
                     {
                         opcode: 'exportLogsTxt',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: 'Exporter les logs en TXT'
+                        text: 'Export logs as TXT'
                     },
                     {
                         opcode: 'exportLogsJson',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: 'Exporter les logs en JSON'
+                        text: 'Export logs as JSON'
                     },
                 ],
                 menus: {
@@ -127,12 +127,13 @@
             const script = util.thread.topBlock;
             if (script) {
                 let blockList = [];
-                let currentBlock = script;
-                while (currentBlock) {
-                    const block = util.runtime.blocks.getBlock(currentBlock);
+                let currentBlockId = script;
+
+                while (currentBlockId) {
+                    const block = util.runtime.blocks.getBlock(currentBlockId);
                     if (block) {
                         blockList.push(block.opcode);
-                        currentBlock = block.next;
+                        currentBlockId = block.next;
                     } else {
                         break;
                     }
@@ -154,6 +155,7 @@
                 }
             }
         }
+
 
         showLogs() {
             if (!this.popup) {
@@ -206,7 +208,7 @@
                 this.filterSelect.style.backgroundColor = '#3e4451';
                 this.filterSelect.style.color = '#abb2bf';
                 const options = [
-                    { value: 'all', text: 'Tous' },
+                    { value: 'all', text: 'All' },
                     { value: 'LOG', text: 'Logs' },
                     { value: 'WARNING', text: 'Warn' },
                     { value: 'ERROR', text: 'Error' }
@@ -223,7 +225,7 @@
                 // Search bar
                 this.searchInput = document.createElement('input');
                 this.searchInput.type = 'text';
-                this.searchInput.placeholder = 'Rechercher...';
+                this.searchInput.placeholder = 'Search...';
                 this.searchInput.style.padding = '8px';
                 this.searchInput.style.borderRadius = '5px';
                 this.searchInput.style.border = '1px solid #44475a';
@@ -244,7 +246,7 @@
                 `;
 
                 const exportTxtButton = document.createElement('button');
-                exportTxtButton.innerText = 'Exporter TXT';
+                exportTxtButton.innerText = 'Export TXT';
                 exportTxtButton.style.cssText = exportButtonStyle;
                 exportTxtButton.addEventListener('mouseover', () => {
                     exportTxtButton.style.backgroundColor = '#98c379';
@@ -256,7 +258,7 @@
                 controlsBar.appendChild(exportTxtButton);
 
                 const exportJsonButton = document.createElement('button');
-                exportJsonButton.innerText = 'Exporter JSON';
+                exportJsonButton.innerText = 'Export JSON';
                 exportJsonButton.style.cssText = exportButtonStyle;
                 exportJsonButton.addEventListener('mouseover', () => {
                     exportJsonButton.style.backgroundColor = '#98c379';
@@ -342,7 +344,7 @@
 
             // Copy button (optional, can be removed for cleaner look)
             const copyButton = document.createElement('button');
-            copyButton.innerText = 'Copier';
+            copyButton.innerText = 'Copy';
             copyButton.style.fontSize = '12px';
             copyButton.style.padding = '4px 8px';
             copyButton.style.border = 'none';
