@@ -19,7 +19,7 @@
                     {
                         opcode: 'showLogs',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: 'Show logs popup'
+                        text: 'Afficher les logs'
                     },
                     {
                         opcode: 'log',
@@ -39,7 +39,7 @@
                     {
                         opcode: 'warn',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: 'Warn [TITLE] [DESCRIPTION]',
+                        text: 'Avertissement [TITLE] [DESCRIPTION]',
                         arguments: {
                             TITLE: {
                                 type: Scratch.ArgumentType.STRING,
@@ -54,7 +54,7 @@
                     {
                         opcode: 'error',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: 'Error [TITLE] [DESCRIPTION]',
+                        text: 'Erreur [TITLE] [DESCRIPTION]',
                         arguments: {
                             TITLE: {
                                 type: Scratch.ArgumentType.STRING,
@@ -67,51 +67,47 @@
                         }
                     },
                     {
-                        opcode: 'addCustomLog',
+                        opcode: 'defineCustomBlock',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: 'Add Custom Log [MESSAGE]',
+                        text: 'Définir le bloc personnalisé [BLOCK_NAME]',
                         arguments: {
-                            MESSAGE: {
+                            BLOCK_NAME: {
                                 type: Scratch.ArgumentType.STRING,
-                                defaultValue: 'Custom Log Message'
+                                defaultValue: 'Nom du bloc'
                             }
-                        }
+                        },
+                        isTerminal: false
                     },
                     {
-                        opcode: 'extractAndLogBlocks',
+                        opcode: 'executeCustomBlock',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: 'Extract and Log Blocks [TITLE] [LOG_TYPE]',
+                        text: 'Exécuter le bloc personnalisé [BLOCK_NAME]',
                         arguments: {
-                            TITLE: {
+                            BLOCK_NAME: {
                                 type: Scratch.ArgumentType.STRING,
-                                defaultValue: 'Script Blocks'
-                            },
-                            LOG_TYPE: {
-                                type: Scratch.ArgumentType.STRING,
-                                menu: 'logTypes',
-                                defaultValue: 'log'
+                                defaultValue: 'Nom du bloc'
                             }
                         }
                     },
                     {
                         opcode: 'clearLogs',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: 'Clear logs'
+                        text: 'Effacer les logs'
                     },
                     {
                         opcode: 'closeLogs',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: 'Close logs popup'
+                        text: 'Fermer la fenêtre de logs'
                     },
                     {
                         opcode: 'exportLogsTxt',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: 'Export logs as TXT'
+                        text: 'Exporter les logs en TXT'
                     },
                     {
                         opcode: 'exportLogsJson',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: 'Export logs as JSON'
+                        text: 'Exporter les logs en JSON'
                     }
                 ],
                 menus: {
@@ -123,41 +119,81 @@
             };
         }
 
-        extractAndLogBlocks(args, util) {
-            const topBlock = util.thread.topBlock;
+        // Stockage des définitions de blocs personnalisés
+        customBlocks = {};
 
-            if (!topBlock) {
-                return; // Exit if there's no script running this block
+        defineCustomBlock(args, util) {
+            const blockName = args.BLOCK_NAME;
+            if (!blockName) {
+                console.warn("Nom de bloc personnalisé vide. Le bloc ne sera pas défini.");
+                return;
             }
 
-            const blockIds = [];
-            let currentBlockId = topBlock;
+            if (this.customBlocks[blockName]) {
+                console.warn(`Le bloc personnalisé "${blockName}" est redéfini.`);
+            }
 
+            // Extraction des blocs à partir du bloc de définition
+            const blocks = [];
+            let currentBlockId = util.thread.topBlock;
             while (currentBlockId) {
                 const block = util.runtime.blocks.getBlock(currentBlockId);
-                if (!block) break;  // Important: Stop if block doesn't exist
+                if (!block) break;
 
-                blockIds.push(block.opcode); // Store the opcode
+                blocks.push({
+                    opcode: block.opcode,
+                    inputs: block.inputs,
+                    fields: block.fields
+                });
 
-                currentBlockId = block.next;  // Move to the next block
+                currentBlockId = block.next;
             }
 
-            const logMessage = blockIds.join(', ');
-            const logType = args.LOG_TYPE.toUpperCase();
+            this.customBlocks[blockName] = blocks;
+            console.log(`Bloc personnalisé "${blockName}" défini avec succès.`);
+        }
 
-            switch (logType) {
-                case 'WARN':
-                    this.warn({ TITLE: args.TITLE, DESCRIPTION: logMessage });
+        executeCustomBlock(args, util) {
+            const blockName = args.BLOCK_NAME;
+
+            if (!this.customBlocks[blockName]) {
+                console.warn(`Bloc personnalisé "${blockName}" non défini.`);
+                return;
+            }
+
+            const blocksToExecute = this.customBlocks[blockName];
+            const executedBlocks = [];
+
+            blocksToExecute.forEach(block => {
+                // Simuler l'exécution du bloc
+                console.log(`Exécution simulée du bloc : ${block.opcode}`);
+                executedBlocks.push(block.opcode);
+
+                // Log de l'exécution
+                this.logExecution(block.opcode, 'log');
+            });
+
+            // Envoi des logs au format JSON
+            const logMessage = JSON.stringify(executedBlocks);
+            this.log({ TITLE: `Exécution du bloc ${blockName}`, DESCRIPTION: logMessage });
+        }
+
+        // Ajoute un log avec un niveau spécifique
+        logExecution(message, level = 'log') {
+            const title = 'Bloc Exécuté';
+            switch (level) {
+                case 'warn':
+                    this.warn({ TITLE: title, DESCRIPTION: message });
                     break;
-                case 'ERROR':
-                    this.error({ TITLE: args.TITLE, DESCRIPTION: logMessage });
+                case 'error':
+                    this.error({ TITLE: title, DESCRIPTION: message });
                     break;
                 default:
-                    this.log({ TITLE: args.TITLE, DESCRIPTION: logMessage });
+                    this.log({ TITLE: title, DESCRIPTION: message });
                     break;
             }
         }
-
+    
         showLogs() {
             if (!this.popup) {
                 this.createPopup();  // Call the popup creation function
@@ -185,9 +221,7 @@
             this.popup.style.overflow = 'hidden';
             this.popup.style.display = 'none';
             this.popup.style.fontFamily = 'sans-serif'; // Modern font
-            this.popup.style.color = '#abb2bf'; // Muted text color
-
-            // Close button
+            this.popup.style.color = '#abb2bf'; // Muted text color... // Close button
             const closeButton = document.createElement('span');
             closeButton.innerHTML = '&times;';
             closeButton.style.position = 'absolute';
@@ -277,9 +311,7 @@
             exportJsonButton.addEventListener('click', () => this.exportLogsJson());
             controlsBar.appendChild(exportJsonButton);
 
-            this.popup.appendChild(controlsBar);
-
-            // Logs container
+            this.popup.appendChild(controlsBar); // Logs container
             this.popupContent = document.createElement('div');
             this.popupContent.style.overflowY = 'auto';
             this.popupContent.style.maxHeight = 'calc(100% - 100px)'; // Adjusted height
@@ -366,50 +398,70 @@
             });
             copyButton.addEventListener('click', (e) => {
                 e.stopPropagation();
-                const textToCopy = `[${type}] ${title}\n${description}`;
-                navigator.clipboard.writeText(textToCopy);
+
+                navigator.clipboard.writeText(description).then(() => {
+                    console.log('Description copied to clipboard');
+                }).catch(err => {
+                    console.error('Failed to copy description: ', err);
+                });
             });
             headerDiv.appendChild(copyButton);
 
             logEntry.appendChild(headerDiv);
 
-            let contentDiv = null;
             if (description && description.trim() !== '') {
-                contentDiv = document.createElement('div');
-                contentDiv.style.marginTop = '8px';
-                contentDiv.style.paddingLeft = '20px';
-                contentDiv.style.display = 'none';
-                contentDiv.style.color = '#9ca3af'; // Muted description color
-                contentDiv.innerText = description;
-                logEntry.appendChild(contentDiv);
+                const descriptionDiv = document.createElement('div');
+                descriptionDiv.style.marginTop = '8px';
+                descriptionDiv.style.color = '#abb2bf';
+                descriptionDiv.style.fontSize = '14px';
+                descriptionDiv.style.display = 'none'; // Initially hidden
+                descriptionDiv.innerText = description;
+
+                logEntry.appendChild(descriptionDiv);
 
                 headerDiv.addEventListener('click', () => {
-                    contentDiv.style.display = contentDiv.style.display === 'none' ? 'block' : 'none';
+                    descriptionDiv.style.display = descriptionDiv.style.display === 'none' ? 'block' : 'none';
                 });
             }
 
-            this.popupContent.appendChild(logEntry);
             this.logs.push({ type, title, description, timestamp });
+            this.popupContent.appendChild(logEntry);
+            this.popupContent.scrollTop = this.popupContent.scrollHeight;
             this.applyFilters();
         }
 
         getLogColor(type) {
             switch (type) {
-                case 'LOG':
-                    return '#61afef';
                 case 'WARNING':
-                    return '#d19a66';
+                    return '#e2b443'; // Yellowish for warnings
                 case 'ERROR':
-                    return '#e06c75';
+                    return '#e06c75'; // Reddish for errors
                 default:
-                    return '#98c379';
+                    return '#61afef'; // Blueish for general logs
             }
+        }
+
+        applyFilters() {
+            if (!this.popupContent) return;
+
+            const filterValue = this.filterSelect.value;
+            const searchTerm = this.searchInput.value.toLowerCase();
+
+            Array.from(this.popupContent.children).forEach(logEntry => {
+                const logType = logEntry.dataset.type;
+                const logText = logEntry.innerText.toLowerCase();
+
+                const typeMatch = filterValue === 'all' || logType === filterValue;
+                const searchMatch = searchTerm === '' || logText.includes(searchTerm);
+
+                logEntry.style.display = typeMatch && searchMatch ? 'block' : 'none';
+            });
         }
 
         clearLogs() {
             this.logs = [];
             if (this.popupContent) {
-                this.popupContent.innerHTML = '';  // Clear the content of the popup
+                this.popupContent.innerHTML = '';
             }
         }
 
@@ -420,51 +472,27 @@
         }
 
         exportLogsTxt() {
-            let content = '';
-
-            this.logs.forEach(log => {
-                content += `[${log.type}] ${log.title} - ${log.timestamp}\n${log.description}\n\n`;
-            });
-
-            this.download('logs.txt', content);
+            const logContent = this.logs.map(log => `[${log.type}] ${log.timestamp} - ${log.title}: ${log.description}`).join('\n');
+            this.downloadFile('logs.txt', logContent, 'text/plain');
         }
 
         exportLogsJson() {
-            const jsonStr = JSON.stringify(this.logs, null, 2);
-            this.download('logs.json', jsonStr);
+            const jsonContent = JSON.stringify(this.logs, null, 2);
+            this.downloadFile('logs.json', jsonContent, 'application/json');
         }
 
-        download(filename, text) {
-            const element = document.createElement('a');
-            element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
-            element.setAttribute('download', filename);
-
-            element.style.display = 'none';
-            document.body.appendChild(element);
-
-            element.click();
-
-            document.body.removeChild(element);
-        }
-
-        applyFilters() {
-            if (!this.popupContent) return;
-
-            const filterValue = this.filterSelect.value.toUpperCase();
-            const searchTerm = this.searchInput.value.toLowerCase();
-
-            Array.from(this.popupContent.children).forEach(logEntry => {
-                const type = logEntry.dataset.type;
-                const title = logEntry.querySelector('span:not([style*="font-size"])').innerText.toLowerCase(); // Exclude timestamp
-                const description = logEntry.querySelector('div[style*="margin-top"]')?.innerText.toLowerCase() || '';
-
-                const typeMatch = filterValue === 'ALL' || type === filterValue;
-                const searchMatch = title.includes(searchTerm) || description.includes(searchTerm);
-
-                logEntry.style.display = typeMatch && searchMatch ? 'block' : 'none';
-            });
+        downloadFile(filename, content, type) {
+            const blob = new Blob([content], { type: type });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         }
     }
 
     Scratch.extensions.register(new LogsExtension());
-}(Scratch));
+})(Scratch);
