@@ -138,21 +138,39 @@
 
         // Fonction pour appliquer le thème
         applyTheme() {
-            const backgroundColor = this.theme === 'dark' ? '#282c34' : '#f0f0f0';
-            const textColor = this.theme === 'dark' ? '#abb2bf' : '#333';
-            const borderColor = this.theme === 'dark' ? '#44475a' : '#ccc';
+            const isDarkTheme = this.theme === 'dark';
+
+            // Couleurs de base
+            const backgroundColor = isDarkTheme ? '#282c34' : '#f0f0f0';
+            const textColor = isDarkTheme ? '#abb2bf' : '#333';
+            const borderColor = isDarkTheme ? '#44475a' : '#ccc';
+
+            // Couleurs spécifiques
+            const buttonBackgroundColor = isDarkTheme ? '#61afef' : '#5e81ac';
+            const buttonTextColor = isDarkTheme ? '#fff' : '#fff'; // Toujours blanc pour la lisibilité
+            const logBackgroundColor = isDarkTheme ? '#3e4451' : '#fff';
+            const logBorderColor = isDarkTheme ? '#44475a' : '#ddd';
 
             if (this.popup) {
+                // Appliquer les couleurs de base à la popup
                 this.popup.style.backgroundColor = backgroundColor;
                 this.popup.style.color = textColor;
                 this.popup.style.border = `1px solid ${borderColor}`;
 
-                // Mettre à jour les styles des éléments dans la popup (ex: boutons, filtres)
-                // C'est une version simplifiée, tu devras peut-être ajuster les sélecteurs CSS
+                // Appliquer les styles aux boutons
                 const buttons = this.popup.querySelectorAll('button');
                 buttons.forEach(button => {
-                    button.style.backgroundColor = this.theme === 'dark' ? '#61afef' : '#5e81ac';
-                    button.style.color = textColor;
+                    button.style.backgroundColor = buttonBackgroundColor;
+                    button.style.color = buttonTextColor;
+                    button.style.border = 'none';
+                });
+
+                // Appliquer les styles aux entrées de log
+                const logEntries = this.popupContent.querySelectorAll('.log-entry');
+                logEntries.forEach(entry => {
+                    entry.style.backgroundColor = logBackgroundColor;
+                    entry.style.border = `1px solid ${logBorderColor}`;
+                    entry.style.color = textColor;
                 });
             }
             // Mettre à jour tous les logs existants
@@ -246,7 +264,6 @@
                 padding: 8px 16px;
                 border: none;
                 border-radius: 5px;
-                background-color: #61afef;
                 color: #fff;
                 cursor: pointer;
                 transition: background-color 0.2s;
@@ -255,11 +272,12 @@
             const exportTxtButton = document.createElement('button');
             exportTxtButton.innerText = 'Export TXT';
             exportTxtButton.style.cssText = exportButtonStyle;
+            exportTxtButton.style.backgroundColor = this.theme === 'dark' ? '#61afef' : '#5e81ac';
             exportTxtButton.addEventListener('mouseover', () => {
-                exportTxtButton.style.backgroundColor = '#98c379';
+                exportTxtButton.style.backgroundColor = this.theme === 'dark' ? '#98c379' : '#88b04b';
             });
             exportTxtButton.addEventListener('mouseout', () => {
-                exportTxtButton.style.backgroundColor = '#61afef';
+                exportTxtButton.style.backgroundColor = this.theme === 'dark' ? '#61afef' : '#5e81ac';
             });
             exportTxtButton.addEventListener('click', () => this.exportLogsTxt());
             controlsBar.appendChild(exportTxtButton);
@@ -267,11 +285,12 @@
             const exportJsonButton = document.createElement('button');
             exportJsonButton.innerText = 'Export JSON';
             exportJsonButton.style.cssText = exportButtonStyle;
+            exportJsonButton.style.backgroundColor = this.theme === 'dark' ? '#61afef' : '#5e81ac';
             exportJsonButton.addEventListener('mouseover', () => {
-                exportJsonButton.style.backgroundColor = '#98c379';
+                exportJsonButton.style.backgroundColor = this.theme === 'dark' ? '#98c379' : '#88b04b';
             });
             exportJsonButton.addEventListener('mouseout', () => {
-                exportJsonButton.style.backgroundColor = '#61afef';
+                exportJsonButton.style.backgroundColor = this.theme === 'dark' ? '#61afef' : '#5e81ac';
             });
             exportJsonButton.addEventListener('click', () => this.exportLogsJson());
             controlsBar.appendChild(exportJsonButton);
@@ -346,13 +365,12 @@
         createLogEntry(key) {
             const logData = this.logCounts[key];
             const logEntry = document.createElement('div');
+            logEntry.classList.add('log-entry'); // Ajoute une classe pour faciliter le styling
             logEntry.style.padding = '12px';
             logEntry.style.marginBottom = '12px';
             logEntry.style.borderRadius = '5px';
-            logEntry.style.backgroundColor = '#3e4451';
-            logEntry.style.borderLeft = `4px solid ${this.getLogColor(logData.type)}`;
-            logEntry.dataset.type = logData.type;
             logEntry.style.wordBreak = 'break-word';
+            logEntry.dataset.type = logData.type;
             logEntry.dataset.key = key; // Stocker la clé
 
             const headerDiv = document.createElement('div');
@@ -367,12 +385,10 @@
 
             const logTypeSpan = document.createElement('span');
             logTypeSpan.style.fontWeight = 'bold';
-            logTypeSpan.style.color = this.getLogColor(logData.type);
-            logTypeSpan.innerText = `[${logData.type}]`;
+            logTypeSpan.style.innerText = `[${logData.type}]`;
             headerLeft.appendChild(logTypeSpan);
 
             const logTime = document.createElement('span');
-            logTime.style.color = '#6b7280';
             logTime.style.fontSize = '12px';
             logTime.style.marginLeft = '10px';
             logTime.innerText = ` [${logData.timestamp}]`;
@@ -380,7 +396,6 @@
 
             const logTitle = document.createElement('span');
             logTitle.style.marginLeft = '10px';
-            logTitle.style.color = '#fff';
             logTitle.innerText = logData.title;
             headerLeft.appendChild(logTitle);
 
@@ -393,15 +408,13 @@
             copyButton.style.padding = '4px 8px';
             copyButton.style.border = 'none';
             copyButton.style.borderRadius = '4px';
-            copyButton.style.backgroundColor = '#5c6370';
-            copyButton.style.color = '#abb2bf';
             copyButton.style.cursor = 'pointer';
             copyButton.style.transition = 'background-color 0.2s';
             copyButton.addEventListener('mouseover', () => {
-                copyButton.style.backgroundColor = '#6b7280';
+                copyButton.style.backgroundColor = this.theme === 'dark' ? '#6b7280' : '#88b04b';
             });
             copyButton.addEventListener('mouseout', () => {
-                copyButton.style.backgroundColor = '#5c6370';
+                copyButton.style.backgroundColor = this.theme === 'dark' ? '#5c6370' : '#5e81ac';
             });
             copyButton.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -418,7 +431,6 @@
             if (logData.description && logData.description.trim() !== '') {
                 const descriptionDiv = document.createElement('div');
                 descriptionDiv.style.marginTop = '8px';
-                descriptionDiv.style.color = '#abb2bf';
                 descriptionDiv.style.fontSize = '14px';
                 descriptionDiv.style.display = 'none';
                 descriptionDiv.innerText = logData.description;
@@ -433,6 +445,7 @@
             this.popupContent.appendChild(logEntry);
             this.popupContent.scrollTop = this.popupContent.scrollHeight;
             this.logs.push(logData); // Stocker les données du log
+            this.applyTheme()
         }
 
         // Fonction pour mettre à jour une entrée de log existante
