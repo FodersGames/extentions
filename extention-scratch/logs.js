@@ -19,7 +19,7 @@
                     {
                         opcode: 'showLogs',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: 'Afficher les logs'
+                        text: 'Show logs popup'
                     },
                     {
                         opcode: 'log',
@@ -39,7 +39,7 @@
                     {
                         opcode: 'warn',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: 'Avertissement [TITLE] [DESCRIPTION]',
+                        text: 'Warn [TITLE] [DESCRIPTION]',
                         arguments: {
                             TITLE: {
                                 type: Scratch.ArgumentType.STRING,
@@ -54,7 +54,7 @@
                     {
                         opcode: 'error',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: 'Erreur [TITLE] [DESCRIPTION]',
+                        text: 'Error [TITLE] [DESCRIPTION]',
                         arguments: {
                             TITLE: {
                                 type: Scratch.ArgumentType.STRING,
@@ -67,131 +67,27 @@
                         }
                     },
                     {
-                        opcode: 'defineCustomBlock',
-                        blockType: Scratch.BlockType.COMMAND,
-                        text: 'Définir le bloc personnalisé [BLOCK_NAME]',
-                        arguments: {
-                            BLOCK_NAME: {
-                                type: Scratch.ArgumentType.STRING,
-                                defaultValue: 'Nom du bloc'
-                            }
-                        },
-                        isTerminal: false
-                    },
-                    {
-                        opcode: 'executeCustomBlock',
-                        blockType: Scratch.BlockType.COMMAND,
-                        text: 'Exécuter le bloc personnalisé [BLOCK_NAME]',
-                        arguments: {
-                            BLOCK_NAME: {
-                                type: Scratch.ArgumentType.STRING,
-                                defaultValue: 'Nom du bloc'
-                            }
-                        }
-                    },
-                    {
                         opcode: 'clearLogs',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: 'Effacer les logs'
+                        text: 'Clear logs'
                     },
                     {
                         opcode: 'closeLogs',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: 'Fermer la fenêtre de logs'
+                        text: 'Close logs popup'
                     },
                     {
                         opcode: 'exportLogsTxt',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: 'Exporter les logs en TXT'
+                        text: 'Export logs as TXT'
                     },
                     {
                         opcode: 'exportLogsJson',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: 'Exporter les logs en JSON'
+                        text: 'Export logs as JSON'
                     }
-                ],
-                menus: {
-                    logTypes: {
-                        acceptReporters: true,
-                        items: ['log', 'warn', 'error']
-                    }
-                }
+                ]
             };
-        }
-
-        // Stockage des définitions de blocs personnalisés
-        customBlocks = {};
-
-        defineCustomBlock(args, util) {
-            const blockName = args.BLOCK_NAME;
-            if (!blockName) {
-                console.warn("Nom de bloc personnalisé vide. Le bloc ne sera pas défini.");
-                return;
-            }
-
-            if (this.customBlocks[blockName]) {
-                console.warn(`Le bloc personnalisé "${blockName}" est redéfini.`);
-            }
-
-            // Extraction des blocs à partir du bloc de définition
-            const blocks = [];
-            let currentBlockId = util.thread.topBlock;
-            while (currentBlockId) {
-                const block = util.runtime.blocks.getBlock(currentBlockId);
-                if (!block) break;
-
-                blocks.push({
-                    opcode: block.opcode,
-                    inputs: block.inputs,
-                    fields: block.fields
-                });
-
-                currentBlockId = block.next;
-            }
-
-            this.customBlocks[blockName] = blocks;
-            console.log(`Bloc personnalisé "${blockName}" défini avec succès.`);
-        }
-
-        executeCustomBlock(args, util) {
-            const blockName = args.BLOCK_NAME;
-
-            if (!this.customBlocks[blockName]) {
-                console.warn(`Bloc personnalisé "${blockName}" non défini.`);
-                return;
-            }
-
-            const blocksToExecute = this.customBlocks[blockName];
-            const executedBlocks = [];
-
-            blocksToExecute.forEach(block => {
-                // Simuler l'exécution du bloc
-                console.log(`Exécution simulée du bloc : ${block.opcode}`);
-                executedBlocks.push(block.opcode);
-
-                // Log de l'exécution
-                this.logExecution(block.opcode, 'log');
-            });
-
-            // Envoi des logs au format JSON
-            const logMessage = JSON.stringify(executedBlocks);
-            this.log({ TITLE: `Exécution du bloc ${blockName}`, DESCRIPTION: logMessage });
-        }
-
-        // Ajoute un log avec un niveau spécifique
-        logExecution(message, level = 'log') {
-            const title = 'Bloc Exécuté';
-            switch (level) {
-                case 'warn':
-                    this.warn({ TITLE: title, DESCRIPTION: message });
-                    break;
-                case 'error':
-                    this.error({ TITLE: title, DESCRIPTION: message });
-                    break;
-                default:
-                    this.log({ TITLE: title, DESCRIPTION: message });
-                    break;
-            }
         }
     
         showLogs() {
@@ -311,7 +207,9 @@
             exportJsonButton.addEventListener('click', () => this.exportLogsJson());
             controlsBar.appendChild(exportJsonButton);
 
-            this.popup.appendChild(controlsBar); // Logs container
+            this.popup.appendChild(controlsBar);
+
+            // Logs container
             this.popupContent = document.createElement('div');
             this.popupContent.style.overflowY = 'auto';
             this.popupContent.style.maxHeight = 'calc(100% - 100px)'; // Adjusted height
@@ -331,10 +229,6 @@
 
         error(args) {
             this.addLog('ERROR', args.TITLE, args.DESCRIPTION);
-        }
-
-        addCustomLog(args) {
-            this.addLog('LOG', 'Custom Log', args.MESSAGE);
         }
 
         addLog(type, title, description) {
@@ -379,50 +273,7 @@
 
             headerDiv.appendChild(headerLeft);
 
-            // Copy button (optional, can be removed for cleaner look)
-            const copyButton = document.createElement('button');
-            copyButton.innerText = 'Copy';
-            copyButton.style.fontSize = '12px';
-            copyButton.style.padding = '4px 8px';
-            copyButton.style.border = 'none';
-            copyButton.style.borderRadius = '4px';
-            copyButton.style.backgroundColor = '#5c6370'; // Darker button
-            copyButton.style.color = '#abb2bf';
-            copyButton.style.cursor = 'pointer';
-            copyButton.style.transition = 'background-color 0.2s';
-            copyButton.addEventListener('mouseover', () => {
-                copyButton.style.backgroundColor = '#6b7280';
-            });
-            copyButton.addEventListener('mouseout', () => {
-                copyButton.style.backgroundColor = '#5c6370';
-            });
-            copyButton.addEventListener('click', (e) => {
-                e.stopPropagation();
-
-                navigator.clipboard.writeText(description).then(() => {
-                    console.log('Description copied to clipboard');
-                }).catch(err => {
-                    console.error('Failed to copy description: ', err);
-                });
-            });
-            headerDiv.appendChild(copyButton);
-
             logEntry.appendChild(headerDiv);
-
-            if (description && description.trim() !== '') {
-                const descriptionDiv = document.createElement('div');
-                descriptionDiv.style.marginTop = '8px';
-                descriptionDiv.style.color = '#abb2bf';
-                descriptionDiv.style.fontSize = '14px';
-                descriptionDiv.style.display = 'none'; // Initially hidden
-                descriptionDiv.innerText = description;
-
-                logEntry.appendChild(descriptionDiv);
-
-                headerDiv.addEventListener('click', () => {
-                    descriptionDiv.style.display = descriptionDiv.style.display === 'none' ? 'block' : 'none';
-                });
-            }
 
             this.logs.push({ type, title, description, timestamp });
             this.popupContent.appendChild(logEntry);
