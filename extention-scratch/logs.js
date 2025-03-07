@@ -3,7 +3,6 @@
 
     class LogsExtension {
         constructor() {
-            // Store logs as objects { type, title, description, timestamp }
             this.logs = [];
             this.popup = null;
             this.popupContent = null;
@@ -20,7 +19,7 @@
                     {
                         opcode: 'showLogs',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: 'Show logs popup'
+                        text: 'Afficher les logs'
                     },
                     {
                         opcode: 'log',
@@ -70,36 +69,90 @@
                      {
                         opcode: 'addCustomLog',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: 'Add Custom Log [MESSAGE]',
+                        text: 'Ajouter un log personnalisé [MESSAGE]',
                         arguments: {
                             MESSAGE: {
                                 type: Scratch.ArgumentType.STRING,
-                                defaultValue: 'Custom Log Message'
+                                defaultValue: 'Message de log personnalisé'
+                            }
+                        }
+                    },
+                    {
+                        opcode: 'extractAndLogBlocks',
+                        blockType: Scratch.BlockType.COMMAND,
+                        text: 'Extraire et logger les blocs [TITLE] [LOG_TYPE]',
+                        arguments: {
+                            TITLE: {
+                                type: Scratch.ArgumentType.STRING,
+                                defaultValue: 'Script Blocks'
+                            },
+                            LOG_TYPE: {
+                                type: Scratch.ArgumentType.STRING,
+                                menu: 'logTypes',
+                                defaultValue: 'log'
                             }
                         }
                     },
                     {
                         opcode: 'clearLogs',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: 'Clear logs'
+                        text: 'Effacer les logs'
                     },
                     {
                         opcode: 'closeLogs',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: 'Close logs popup'
+                        text: 'Fermer la fenêtre de logs'
                     },
                     {
                         opcode: 'exportLogsTxt',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: 'Export logs as TXT'
+                        text: 'Exporter les logs en TXT'
                     },
                     {
                         opcode: 'exportLogsJson',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: 'Export logs as JSON'
+                        text: 'Exporter les logs en JSON'
+                    },
+                ],
+                menus: {
+                    logTypes: {
+                        acceptReporters: true,
+                        items: ['log', 'warn', 'error']
                     }
-                ]
+                }
             };
+        }
+
+        extractAndLogBlocks(args, util) {
+            const script = util.thread.topBlock;
+            if (script) {
+                let blockList = [];
+                let currentBlock = script;
+                while (currentBlock) {
+                    const block = util.runtime.blocks.getBlock(currentBlock);
+                    if (block) {
+                        blockList.push(block.opcode);
+                        currentBlock = block.next;
+                    } else {
+                        break;
+                    }
+                }
+
+                const logMessage = blockList.join(', ');
+                const logType = args.LOG_TYPE.toUpperCase();
+
+                switch (logType) {
+                    case 'WARN':
+                        this.warn({ TITLE: args.TITLE, DESCRIPTION: logMessage });
+                        break;
+                    case 'ERROR':
+                        this.error({ TITLE: args.TITLE, DESCRIPTION: logMessage });
+                        break;
+                    default:
+                        this.log({ TITLE: args.TITLE, DESCRIPTION: logMessage });
+                        break;
+                }
+            }
         }
 
         showLogs() {
@@ -153,7 +206,7 @@
                 this.filterSelect.style.backgroundColor = '#3e4451';
                 this.filterSelect.style.color = '#abb2bf';
                 const options = [
-                    { value: 'all', text: 'All' },
+                    { value: 'all', text: 'Tous' },
                     { value: 'LOG', text: 'Logs' },
                     { value: 'WARNING', text: 'Warn' },
                     { value: 'ERROR', text: 'Error' }
@@ -167,10 +220,10 @@
                 this.filterSelect.addEventListener('change', () => this.applyFilters());
                 controlsBar.appendChild(this.filterSelect);
 
-                 // Search bar
+                // Search bar
                 this.searchInput = document.createElement('input');
                 this.searchInput.type = 'text';
-                this.searchInput.placeholder = 'Search...';
+                this.searchInput.placeholder = 'Rechercher...';
                 this.searchInput.style.padding = '8px';
                 this.searchInput.style.borderRadius = '5px';
                 this.searchInput.style.border = '1px solid #44475a';
@@ -178,7 +231,6 @@
                 this.searchInput.style.color = '#abb2bf';
                 this.searchInput.addEventListener('input', () => this.applyFilters());
                 controlsBar.appendChild(this.searchInput);
-
 
                 // Export buttons with modern styling
                 const exportButtonStyle = `
@@ -192,7 +244,7 @@
                 `;
 
                 const exportTxtButton = document.createElement('button');
-                exportTxtButton.innerText = 'Export TXT';
+                exportTxtButton.innerText = 'Exporter TXT';
                 exportTxtButton.style.cssText = exportButtonStyle;
                 exportTxtButton.addEventListener('mouseover', () => {
                     exportTxtButton.style.backgroundColor = '#98c379';
@@ -204,7 +256,7 @@
                 controlsBar.appendChild(exportTxtButton);
 
                 const exportJsonButton = document.createElement('button');
-                exportJsonButton.innerText = 'Export JSON';
+                exportJsonButton.innerText = 'Exporter JSON';
                 exportJsonButton.style.cssText = exportButtonStyle;
                 exportJsonButton.addEventListener('mouseover', () => {
                     exportJsonButton.style.backgroundColor = '#98c379';
@@ -290,7 +342,7 @@
 
             // Copy button (optional, can be removed for cleaner look)
             const copyButton = document.createElement('button');
-            copyButton.innerText = 'Copy';
+            copyButton.innerText = 'Copier';
             copyButton.style.fontSize = '12px';
             copyButton.style.padding = '4px 8px';
             copyButton.style.border = 'none';
@@ -360,39 +412,47 @@
 
         exportLogsTxt() {
             let content = '';
+
             this.logs.forEach(log => {
-                content += `[${log.type}] ${log.title} ${log.timestamp}\n${log.description}\n\n`;
+                content += `[${log.type}] ${log.title} - ${log.timestamp}\n${log.description}\n\n`;
             });
-            this.downloadFile('logs.txt', content);
+
+            this.download('logs.txt', content);
         }
 
         exportLogsJson() {
-            const json = JSON.stringify(this.logs, null, 2);
-            this.downloadFile('logs.json', json);
+            const jsonStr = JSON.stringify(this.logs, null, 2);
+            this.download('logs.json', jsonStr);
         }
 
-        downloadFile(filename, content) {
+        download(filename, text) {
             const element = document.createElement('a');
-            element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(content));
+            element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
             element.setAttribute('download', filename);
+
             element.style.display = 'none';
             document.body.appendChild(element);
+
             element.click();
+
             document.body.removeChild(element);
         }
 
         applyFilters() {
-            const filterValue = this.filterSelect.value;
-            const searchTerm = this.searchInput.value ? this.searchInput.value.toLowerCase() : '';
+            if (!this.popupContent) return;
+
+            const filterValue = this.filterSelect.value.toUpperCase();
+            const searchTerm = this.searchInput.value.toLowerCase();
 
             Array.from(this.popupContent.children).forEach(logEntry => {
-                const logType = logEntry.dataset.type;
-                const logText = logEntry.innerText.toLowerCase();
+                const type = logEntry.dataset.type;
+                const title = logEntry.querySelector('span:not([style*="font-size"])').innerText.toLowerCase(); // Exclude timestamp
+                const description = logEntry.querySelector('div[style*="margin-top"]')?.innerText.toLowerCase() || '';
 
-                const typeMatch = filterValue === 'all' || logType === filterValue;
-                const searchMatch = !searchTerm || logText.includes(searchTerm);
+                const typeMatch = filterValue === 'ALL' || type === filterValue;
+                const searchMatch = title.includes(searchTerm) || description.includes(searchTerm);
 
-                logEntry.style.display = (typeMatch && searchMatch) ? 'block' : 'none';
+                logEntry.style.display = typeMatch && searchMatch ? 'block' : 'none';
             });
         }
     }
