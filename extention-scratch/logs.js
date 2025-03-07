@@ -4,11 +4,13 @@
     class LogsExtension {
         constructor() {
             this.logs = [];
+            this.logCounts = {}; // Pour le regroupement des logs
             this.popup = null;
             this.popupContent = null;
             this.filterSelect = null;
             this.searchInput = null;
-            this.theme = 'dark';
+            this.theme = 'dark'; // Thème par défaut
+            this.verbosityLevel = 'DEBUG'; // Niveau de verbosité par défaut
         }
 
         getInfo() {
@@ -67,6 +69,30 @@
                         }
                     },
                     {
+                        opcode: 'setVerbosity',
+                        blockType: Scratch.BlockType.COMMAND,
+                        text: 'Set verbosity to [LEVEL]',
+                        arguments: {
+                            LEVEL: {
+                                type: Scratch.ArgumentType.STRING,
+                                menu: 'verbosityLevels',
+                                defaultValue: 'DEBUG'
+                            }
+                        }
+                    },
+                    {
+                        opcode: 'setTheme',
+                        blockType: Scratch.BlockType.COMMAND,
+                        text: 'Set theme to [THEME]',
+                        arguments: {
+                            THEME: {
+                                type: Scratch.ArgumentType.STRING,
+                                menu: 'themes',
+                                defaultValue: 'dark'
+                            }
+                        }
+                    },
+                    {
                         opcode: 'clearLogs',
                         blockType: Scratch.BlockType.COMMAND,
                         text: 'Clear logs'
@@ -86,20 +112,64 @@
                         blockType: Scratch.BlockType.COMMAND,
                         text: 'Export logs as JSON'
                     }
-                ]
+                ],
+                menus: {
+                    verbosityLevels: {
+                        acceptReporters: true,
+                        items: ['DEBUG', 'INFO', 'WARNING', 'ERROR']
+                    },
+                    themes: {
+                        acceptReporters: true,
+                        items: ['dark', 'light']
+                    }
+                }
             };
+        }
+
+        setVerbosity(args) {
+            this.verbosityLevel = args.LEVEL;
+            this.applyFilters(); // Rafraîchir l'affichage des logs
+        }
+
+        setTheme(args) {
+            this.theme = args.THEME;
+            this.applyTheme(); // Appliquer le nouveau thème
+        }
+
+        // Fonction pour appliquer le thème
+        applyTheme() {
+            const backgroundColor = this.theme === 'dark' ? '#282c34' : '#f0f0f0';
+            const textColor = this.theme === 'dark' ? '#abb2bf' : '#333';
+            const borderColor = this.theme === 'dark' ? '#44475a' : '#ccc';
+
+            if (this.popup) {
+                this.popup.style.backgroundColor = backgroundColor;
+                this.popup.style.color = textColor;
+                this.popup.style.border = `1px solid ${borderColor}`;
+
+                // Mettre à jour les styles des éléments dans la popup (ex: boutons, filtres)
+                // C'est une version simplifiée, tu devras peut-être ajuster les sélecteurs CSS
+                const buttons = this.popup.querySelectorAll('button');
+                buttons.forEach(button => {
+                    button.style.backgroundColor = this.theme === 'dark' ? '#61afef' : '#5e81ac';
+                    button.style.color = textColor;
+                });
+            }
+            // Mettre à jour tous les logs existants
+            this.applyFilters();
         }
 
         showLogs() {
             if (!this.popup) {
                 this.createPopup();
+                this.applyTheme(); // Appliquer le thème initial
             }
             this.popup.style.display = 'block';
             this.applyFilters();
         }
 
         createPopup() {
-            // Create main popup container
+            // Création de la fenêtre popup (identique à avant, mais avec des classes CSS)
             this.popup = document.createElement('div');
             this.popup.style.position = 'fixed';
             this.popup.style.top = '50%';
@@ -108,37 +178,36 @@
             this.popup.style.width = '80%';
             this.popup.style.maxWidth = '800px';
             this.popup.style.height = '70%';
-            this.popup.style.backgroundColor = '#282c34'; // Dark background
-            this.popup.style.border = '1px solid #44475a'; // Subtle border
-            this.popup.style.borderRadius = '10px'; // Rounded corners
-            this.popup.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.5)'; // Soft shadow
+            this.popup.style.borderRadius = '10px';
+            this.popup.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.5)';
             this.popup.style.zIndex = '9999';
             this.popup.style.padding = '20px';
             this.popup.style.overflow = 'hidden';
             this.popup.style.display = 'none';
-            this.popup.style.fontFamily = 'sans-serif'; // Modern font
-            this.popup.style.color = '#abb2bf'; // Muted text color... // Close button
+            this.popup.style.fontFamily = 'sans-serif';
+
+            // Bouton de fermeture
             const closeButton = document.createElement('span');
             closeButton.innerHTML = '&times;';
             closeButton.style.position = 'absolute';
             closeButton.style.top = '10px';
             closeButton.style.right = '10px';
             closeButton.style.fontSize = '24px';
-            closeButton.style.color = '#e06c75'; // Reddish close color
+            closeButton.style.color = '#e06c75';
             closeButton.style.cursor = 'pointer';
             closeButton.addEventListener('click', () => {
                 this.popup.style.display = 'none';
             });
             this.popup.appendChild(closeButton);
 
-            // Controls bar
+            // Barre de contrôles
             const controlsBar = document.createElement('div');
             controlsBar.style.marginBottom = '15px';
             controlsBar.style.display = 'flex';
             controlsBar.style.alignItems = 'center';
             controlsBar.style.gap = '10px';
 
-            // Filter dropdown
+            // Filtre de type de log
             this.filterSelect = document.createElement('select');
             this.filterSelect.style.padding = '8px 12px';
             this.filterSelect.style.borderRadius = '5px';
@@ -160,7 +229,7 @@
             this.filterSelect.addEventListener('change', () => this.applyFilters());
             controlsBar.appendChild(this.filterSelect);
 
-            // Search bar
+            // Barre de recherche
             this.searchInput = document.createElement('input');
             this.searchInput.type = 'text';
             this.searchInput.placeholder = 'Search...';
@@ -172,12 +241,12 @@
             this.searchInput.addEventListener('input', () => this.applyFilters());
             controlsBar.appendChild(this.searchInput);
 
-            // Export buttons with modern styling
+            // Boutons d'export
             const exportButtonStyle = `
                 padding: 8px 16px;
                 border: none;
                 border-radius: 5px;
-                background-color: #61afef; /* Blue-ish */
+                background-color: #61afef;
                 color: #fff;
                 cursor: pointer;
                 transition: background-color 0.2s;
@@ -209,10 +278,10 @@
 
             this.popup.appendChild(controlsBar);
 
-            // Logs container
+            // Conteneur des logs
             this.popupContent = document.createElement('div');
             this.popupContent.style.overflowY = 'auto';
-            this.popupContent.style.maxHeight = 'calc(100% - 100px)'; // Adjusted height
+            this.popupContent.style.maxHeight = 'calc(100% - 100px)';
             this.popupContent.style.paddingRight = '10px';
             this.popup.appendChild(this.popupContent);
 
@@ -232,21 +301,65 @@
         }
 
         addLog(type, title, description) {
+            // Vérification du niveau de verbosité
+            if (!this.isLogVisible(type)) return;
+
+            const key = `${type}-${title}-${description}`; // Clé pour l'identification des logs similaires
             const timestamp = new Date().toISOString();
+
+            if (this.logCounts[key]) {
+                // Incrémenter le compteur si le log existe déjà
+                this.logCounts[key].count++;
+                this.logCounts[key].timestamp = timestamp; // Mettre à jour le timestamp
+                this.updateLogEntry(key); // Mettre à jour l'entrée de log existante
+            } else {
+                // Créer une nouvelle entrée de log
+                this.logCounts[key] = {
+                    type: type,
+                    title: title,
+                    description: description,
+                    timestamp: timestamp,
+                    count: 1
+                };
+                this.createLogEntry(key);
+            }
+            this.applyFilters();
+        }
+
+        // Fonction pour déterminer si un log doit être affiché en fonction du niveau de verbosité
+        isLogVisible(type) {
+            const verbosityLevels = {
+                'DEBUG': 1,
+                'INFO': 2,
+                'WARNING': 3,
+                'ERROR': 4
+            };
+            const logTypeLevels = {
+                'LOG': 1,
+                'WARNING': 3,
+                'ERROR': 4
+            };
+            return verbosityLevels[this.verbosityLevel] <= logTypeLevels[type];
+        }
+
+        // Fonction pour créer une entrée de log (affichée dans la popup)
+        createLogEntry(key) {
+            const logData = this.logCounts[key];
             const logEntry = document.createElement('div');
             logEntry.style.padding = '12px';
             logEntry.style.marginBottom = '12px';
             logEntry.style.borderRadius = '5px';
             logEntry.style.backgroundColor = '#3e4451';
-            logEntry.style.borderLeft = `4px solid ${this.getLogColor(type)}`;
-            logEntry.dataset.type = type;
+            logEntry.style.borderLeft = `4px solid ${this.getLogColor(logData.type)}`;
+            logEntry.dataset.type = logData.type;
             logEntry.style.wordBreak = 'break-word';
+            logEntry.dataset.key = key; // Stocker la clé
 
             const headerDiv = document.createElement('div');
             headerDiv.style.display = 'flex';
             headerDiv.style.justifyContent = 'space-between';
             headerDiv.style.alignItems = 'center';
-            headerDiv.style.cursor = description && description.trim() !== '' ? 'pointer' : 'default';
+            headerDiv.style.cursor = logData.description && logData.description.trim() !== '' ? 'pointer' : 'default';
 
             const headerLeft = document.createElement('div');
             headerLeft.style.display = 'flex';
@@ -254,26 +367,26 @@
 
             const logTypeSpan = document.createElement('span');
             logTypeSpan.style.fontWeight = 'bold';
-            logTypeSpan.style.color = this.getLogColor(type);
-            logTypeSpan.innerText = `[${type}]`;
+            logTypeSpan.style.color = this.getLogColor(logData.type);
+            logTypeSpan.innerText = `[${logData.type}]`;
             headerLeft.appendChild(logTypeSpan);
 
             const logTime = document.createElement('span');
             logTime.style.color = '#6b7280';
             logTime.style.fontSize = '12px';
             logTime.style.marginLeft = '10px';
-            logTime.innerText = ` [${timestamp}]`;
+            logTime.innerText = ` [${logData.timestamp}]`;
             headerLeft.appendChild(logTime);
 
             const logTitle = document.createElement('span');
             logTitle.style.marginLeft = '10px';
             logTitle.style.color = '#fff';
-            logTitle.innerText = title;
+            logTitle.innerText = logData.title;
             headerLeft.appendChild(logTitle);
 
             headerDiv.appendChild(headerLeft);
 
-            // Copy button
+            // Bouton de copie
             const copyButton = document.createElement('button');
             copyButton.innerText = 'Copy';
             copyButton.style.fontSize = '12px';
@@ -292,7 +405,7 @@
             });
             copyButton.addEventListener('click', (e) => {
                 e.stopPropagation();
-                navigator.clipboard.writeText(description).then(() => {
+                navigator.clipboard.writeText(logData.description).then(() => {
                     console.log('Description copied to clipboard');
                 }).catch(err => {
                     console.error('Failed to copy description: ', err);
@@ -302,13 +415,13 @@
 
             logEntry.appendChild(headerDiv);
 
-            if (description && description.trim() !== '') {
+            if (logData.description && logData.description.trim() !== '') {
                 const descriptionDiv = document.createElement('div');
                 descriptionDiv.style.marginTop = '8px';
                 descriptionDiv.style.color = '#abb2bf';
                 descriptionDiv.style.fontSize = '14px';
-                descriptionDiv.style.display = 'none'; // Initially hidden
-                descriptionDiv.innerText = description;
+                descriptionDiv.style.display = 'none';
+                descriptionDiv.innerText = logData.description;
 
                 logEntry.appendChild(descriptionDiv);
 
@@ -317,20 +430,34 @@
                 });
             }
 
-            this.logs.push({ type, title, description, timestamp });
             this.popupContent.appendChild(logEntry);
             this.popupContent.scrollTop = this.popupContent.scrollHeight;
-            this.applyFilters();
+            this.logs.push(logData); // Stocker les données du log
+        }
+
+        // Fonction pour mettre à jour une entrée de log existante
+        updateLogEntry(key) {
+            const logData = this.logCounts[key];
+            const logEntry = this.popupContent.querySelector(`[data-key="${key}"]`); // Sélectionner l'élément par sa clé
+
+            if (logEntry) {
+                // Mettre à jour le timestamp
+                const logTime = logEntry.querySelector('span:nth-child(2)');
+                logTime.innerText = ` [${logData.timestamp}]`;
+
+                // Mettre à jour le compteur (si tu souhaites l'afficher)
+                // (exemple: tu pourrais ajouter un élément HTML pour afficher le compteur)
+            }
         }
 
         getLogColor(type) {
             switch (type) {
                 case 'WARNING':
-                    return '#e2b443'; // Yellowish for warnings
+                    return '#e2b443';
                 case 'ERROR':
-                    return '#e06c75'; // Reddish for errors
+                    return '#e06c75';
                 default:
-                    return '#61afef'; // Blueish for general logs
+                    return '#61afef';
             }
         }
 
@@ -353,6 +480,7 @@
 
         clearLogs() {
             this.logs = [];
+            this.logCounts = {}; // Réinitialiser les compteurs
             if (this.popupContent) {
                 this.popupContent.innerHTML = '';
             }
