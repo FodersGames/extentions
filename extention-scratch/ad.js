@@ -12,6 +12,10 @@
             this._adTimers = {};
             this._currentAdId = null;
             this._debugMode = true; // Debug mode enabled by default
+            
+            // New: Event tracking to prevent multiple triggers
+            this._eventsFired = {};
+            this._eventLock = false;
         }
 
         getInfo() {
@@ -77,6 +81,17 @@
                         opcode: 'isAdFailed',
                         blockType: Scratch.BlockType.BOOLEAN,
                         text: 'Ad with ID [AD_ID] failed?',
+                        arguments: {
+                            AD_ID: {
+                                type: Scratch.ArgumentType.STRING,
+                                defaultValue: '1'
+                            }
+                        }
+                    },
+                    {
+                        opcode: 'resetAdStatus',
+                        blockType: Scratch.BlockType.COMMAND,
+                        text: 'Reset status for ad ID [AD_ID]',
                         arguments: {
                             AD_ID: {
                                 type: Scratch.ArgumentType.STRING,
@@ -162,6 +177,10 @@
             this._adFailed[adId] = false;
             this._adErrors[adId] = [];
             this._currentAdId = adId;
+            
+            // NEW: Reset event tracking for this ad ID
+            this._eventsFired[`success_${adId}`] = false;
+            this._eventsFired[`fail_${adId}`] = false;
 
             // Close any current ad
             this.closeAd();
@@ -346,6 +365,14 @@
         }
 
         _finishAd(adId, success, reason = '') {
+            // Prevent multiple calls to _finishAd for the same ad with the same outcome
+            const eventKey = success ? `success_${adId}` : `fail_${adId}`;
+            
+            if (this._eventsFired[eventKey]) {
+                this._log(adId, `Event already fired for ${eventKey}, ignoring duplicate`, 'warn');
+                return;
+            }
+            
             this._log(adId, `Ad finished - Success: ${success}, Reason: ${reason}`);
             
             // Clean up timers
@@ -370,16 +397,33 @@
             }
 
             this._currentAdId = null;
+            
+            // Mark this event as fired
+            this._eventsFired[eventKey] = true;
+
+            // Prevent event flooding with a lock
+            if (this._eventLock) {
+                this._log(adId, 'Event lock active, delaying event trigger', 'warn');
+                return;
+            }
+            
+            this._eventLock = true;
 
             // Trigger events after a short delay
             setTimeout(() => {
                 if (success) {
-                    this._log(adId, 'Triggering success event');
+                    this._log(adId, 'Triggering success event (ONCE ONLY)');
                     Scratch.vm.runtime.startHats('adRewards_onAdFinished', { AD_ID: adId });
                 } else {
-                    this._log(adId, 'Triggering failure event');
+                    this._log(adId, 'Triggering failure event (ONCE ONLY)');
                     Scratch.vm.runtime.startHats('adRewards_onAdFailed', { AD_ID: adId });
                 }
+                
+                // Release the event lock after a safe period
+                setTimeout(() => {
+                    this._eventLock = false;
+                }, 500);
+                
             }, 100);
         }
 
@@ -399,12 +443,32 @@
 
         onAdFinished(args) {
             const adId = String(args.AD_ID);
-            return this._adSuccess[adId] === true;
+            // This is the HAT block condition - it should only return true ONCE
+            // when the ad finishes successfully
+            const result = this._adSuccess[adId] === true && !this._eventsFired[`success_${adId}_processed`];
+            
+            if (result) {
+                // Mark as processed so it doesn't trigger again
+                this._eventsFired[`success_${adId}_processed`] = true;
+                this._log(adId, 'HAT block onAdFinished triggered ONCE', 'info');
+            }
+            
+            return result;
         }
 
         onAdFailed(args) {
             const adId = String(args.AD_ID);
-            return this._adFailed[adId] === true;
+            // This is the HAT block condition - it should only return true ONCE
+            // when the ad fails
+            const result = this._adFailed[adId] === true && !this._eventsFired[`fail_${adId}_processed`];
+            
+            if (result) {
+                // Mark as processed so it doesn't trigger again
+                this._eventsFired[`fail_${adId}_processed`] = true;
+                this._log(adId, 'HAT block onAdFailed triggered ONCE', 'info');
+            }
+            
+            return result;
         }
 
         isAdFinished(args) {
@@ -415,6 +479,17 @@
         isAdFailed(args) {
             const adId = String(args.AD_ID);
             return this._adFailed[adId] === true;
+        }
+        
+        resetAdStatus(args) {
+            const adId = String(args.AD_ID);
+            this._adSuccess[adId] = false;
+            this._adFailed[adId] = false;
+            this._eventsFired[`success_${adId}`] = false;
+            this._eventsFired[`fail_${adId}`] = false;
+            this._eventsFired[`success_${adId}_processed`] = false;
+            this._eventsFired[`fail_${adId}_processed`] = false;
+            this._log(adId, 'Ad status reset', 'info');
         }
 
         getLastError(args) {
