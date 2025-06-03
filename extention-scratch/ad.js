@@ -13,9 +13,9 @@
             this._currentAdId = null;
             this._debugMode = true;
             
-            // Simplified event tracking - only prevent rapid duplicate events
-            this._lastEventTime = {};
-            this._eventCooldown = 1000; // 1 second cooldown between same events
+            // System to ensure single trigger per event
+            this._adJustFinished = {}; // Tracks ads that just finished (edge detection)
+            this._adJustFailed = {};   // Tracks ads that just failed (edge detection)
         }
 
         getInfo() {
@@ -171,9 +171,11 @@
             
             this._log(adId, `Starting ad load - Duration: ${duration}s, URL: ${baseUrl}`);
             
-            // Reset states for this ad - IMPORTANT: Clear previous states
+            // Reset ALL states for this ad
             this._adSuccess[adId] = false;
             this._adFailed[adId] = false;
+            this._adJustFinished[adId] = false;
+            this._adJustFailed[adId] = false;
             this._adErrors[adId] = [];
             this._currentAdId = adId;
 
@@ -338,17 +340,17 @@
         }
 
         _finishAd(adId, success, reason = '') {
-            // Check for rapid duplicate events (cooldown mechanism)
-            const eventKey = `${success ? 'success' : 'fail'}_${adId}`;
-            const now = Date.now();
+            this._log(adId, `Ad finished - Success: ${success}, Reason: ${reason}`);
             
-            if (this._lastEventTime[eventKey] && (now - this._lastEventTime[eventKey]) < this._eventCooldown) {
-                this._log(adId, `Event cooldown active for ${eventKey}, ignoring duplicate`, 'warn');
+            // Prevent multiple calls to _finishAd for the same ad
+            if (success && this._adSuccess[adId]) {
+                this._log(adId, 'Ad already marked as successful, ignoring duplicate', 'warn');
                 return;
             }
-            
-            this._lastEventTime[eventKey] = now;
-            this._log(adId, `Ad finished - Success: ${success}, Reason: ${reason}`);
+            if (!success && this._adFailed[adId]) {
+                this._log(adId, 'Ad already marked as failed, ignoring duplicate', 'warn');
+                return;
+            }
             
             // Clean up timers
             if (this._counter) {
@@ -358,30 +360,26 @@
 
             this.closeAd();
 
-            // Update states
+            // Update states - CRITICAL: Set the "just finished" flag for edge detection
             if (success) {
                 this._adSuccess[adId] = true;
                 this._adFailed[adId] = false;
+                this._adJustFinished[adId] = true; // This triggers the HAT block ONCE
+                this._log(adId, 'Setting adJustFinished to true');
             } else {
                 this._adSuccess[adId] = false;
                 this._adFailed[adId] = true;
+                this._adJustFailed[adId] = true; // This triggers the HAT block ONCE
+                this._log(adId, 'Setting adJustFailed to true');
                 if (reason) {
                     this._log(adId, `Failure: ${reason}`, 'error');
                 }
             }
 
             this._currentAdId = null;
-
-            // Trigger events immediately - no complex locking mechanism
-            setTimeout(() => {
-                if (success) {
-                    this._log(adId, 'Triggering success event');
-                    Scratch.vm.runtime.startHats('adRewards_onAdFinished', { AD_ID: adId });
-                } else {
-                    this._log(adId, 'Triggering failure event');
-                    Scratch.vm.runtime.startHats('adRewards_onAdFailed', { AD_ID: adId });
-                }
-            }, 100);
+            
+            // NO manual startHats call - let Scratch detect the state change naturally
+            this._log(adId, 'Ad finish process completed, waiting for HAT block detection');
         }
 
         closeAd() {
@@ -398,27 +396,33 @@
             this._iframe = null;
         }
 
-        // FIXED: Simplified HAT block logic - no permanent "processed" flags
+        // FIXED: Edge detection - only triggers ONCE when state changes from false to true
         onAdFinished(args) {
             const adId = String(args.AD_ID);
-            const result = this._adSuccess[adId] === true;
             
-            if (result) {
-                this._log(adId, 'HAT block onAdFinished triggered', 'info');
+            // Check if ad just finished (edge detection)
+            if (this._adJustFinished[adId] === true) {
+                this._log(adId, 'HAT block onAdFinished triggered ONCE - consuming event');
+                // Immediately consume the event so it doesn't trigger again
+                this._adJustFinished[adId] = false;
+                return true;
             }
             
-            return result;
+            return false;
         }
 
         onAdFailed(args) {
             const adId = String(args.AD_ID);
-            const result = this._adFailed[adId] === true;
             
-            if (result) {
-                this._log(adId, 'HAT block onAdFailed triggered', 'info');
+            // Check if ad just failed (edge detection)
+            if (this._adJustFailed[adId] === true) {
+                this._log(adId, 'HAT block onAdFailed triggered ONCE - consuming event');
+                // Immediately consume the event so it doesn't trigger again
+                this._adJustFailed[adId] = false;
+                return true;
             }
             
-            return result;
+            return false;
         }
 
         isAdFinished(args) {
@@ -435,10 +439,9 @@
             const adId = String(args.AD_ID);
             this._adSuccess[adId] = false;
             this._adFailed[adId] = false;
-            // Clear cooldown timers for this ad
-            delete this._lastEventTime[`success_${adId}`];
-            delete this._lastEventTime[`fail_${adId}`];
-            this._log(adId, 'Ad status reset', 'info');
+            this._adJustFinished[adId] = false;
+            this._adJustFailed[adId] = false;
+            this._log(adId, 'Ad status completely reset', 'info');
         }
 
         getLastError(args) {
