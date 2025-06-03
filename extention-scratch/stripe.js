@@ -263,6 +263,9 @@
         try {
           this.showNotification("🔍 Vérification du paiement...", "info")
   
+          console.log("🌐 Appel API:", "https://v0-scratch-extension-issue.vercel.app/api/verify-payment")
+          console.log("📦 Données:", { sessionId, paymentLink })
+  
           const response = await fetch("https://v0-scratch-extension-issue.vercel.app/api/verify-payment", {
             method: "POST",
             headers: {
@@ -274,7 +277,14 @@
             }),
           })
   
+          console.log("📡 Réponse API:", response.status, response.statusText)
+  
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+          }
+  
           const result = await response.json()
+          console.log("✅ Résultat API:", result)
   
           if (result.success) {
             this.handlePaymentSuccess(result.payment)
@@ -283,7 +293,7 @@
           }
         } catch (error) {
           console.error("❌ Erreur de vérification:", error)
-          this.handlePaymentError("Erreur de connexion au serveur")
+          this.handlePaymentError(`Erreur de connexion: ${error.message}`)
         }
       }
   
