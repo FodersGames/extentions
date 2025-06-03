@@ -11,20 +11,20 @@
             this._adErrors = {};
             this._adTimers = {};
             this._currentAdId = null;
-            this._debugMode = true; // Mode debug activé par défaut
+            this._debugMode = true; // Debug mode enabled by default
         }
 
         getInfo() {
             return {
                 id: 'adRewards',
-                name: 'Ad Rewards Debug',
-                color1: '#FF6B6B',
-                color2: '#FF5252',
+                name: 'Ad Rewards',
+                color1: '#3A86FF',
+                color2: '#0066CC',
                 blocks: [
                     {
                         opcode: 'showAd',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: 'Diffuser annonce ID [AD_ID] pendant [TIME] secondes via [URL]',
+                        text: 'Show ad with ID [AD_ID] for [TIME] seconds via [URL]',
                         arguments: {
                             AD_ID: {
                                 type: Scratch.ArgumentType.STRING,
@@ -43,7 +43,7 @@
                     {
                         opcode: 'onAdFinished',
                         blockType: Scratch.BlockType.HAT,
-                        text: 'Quand annonce ID [AD_ID] terminée avec succès',
+                        text: 'When ad with ID [AD_ID] finishes successfully',
                         arguments: {
                             AD_ID: {
                                 type: Scratch.ArgumentType.STRING,
@@ -54,7 +54,7 @@
                     {
                         opcode: 'onAdFailed',
                         blockType: Scratch.BlockType.HAT,
-                        text: 'Quand annonce ID [AD_ID] a échoué',
+                        text: 'When ad with ID [AD_ID] fails',
                         arguments: {
                             AD_ID: {
                                 type: Scratch.ArgumentType.STRING,
@@ -65,7 +65,7 @@
                     {
                         opcode: 'isAdFinished',
                         blockType: Scratch.BlockType.BOOLEAN,
-                        text: 'Annonce ID [AD_ID] terminée ?',
+                        text: 'Ad with ID [AD_ID] finished?',
                         arguments: {
                             AD_ID: {
                                 type: Scratch.ArgumentType.STRING,
@@ -76,7 +76,7 @@
                     {
                         opcode: 'isAdFailed',
                         blockType: Scratch.BlockType.BOOLEAN,
-                        text: 'Annonce ID [AD_ID] échouée ?',
+                        text: 'Ad with ID [AD_ID] failed?',
                         arguments: {
                             AD_ID: {
                                 type: Scratch.ArgumentType.STRING,
@@ -87,7 +87,7 @@
                     {
                         opcode: 'getLastError',
                         blockType: Scratch.BlockType.REPORTER,
-                        text: 'Dernière erreur annonce ID [AD_ID]',
+                        text: 'Last error for ad ID [AD_ID]',
                         arguments: {
                             AD_ID: {
                                 type: Scratch.ArgumentType.STRING,
@@ -98,7 +98,7 @@
                     {
                         opcode: 'getAllErrors',
                         blockType: Scratch.BlockType.REPORTER,
-                        text: 'Toutes les erreurs annonce ID [AD_ID]',
+                        text: 'All errors for ad ID [AD_ID]',
                         arguments: {
                             AD_ID: {
                                 type: Scratch.ArgumentType.STRING,
@@ -109,7 +109,7 @@
                     {
                         opcode: 'toggleDebug',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: 'Mode debug [STATE]',
+                        text: 'Debug mode [STATE]',
                         arguments: {
                             STATE: {
                                 type: Scratch.ArgumentType.STRING,
@@ -121,7 +121,7 @@
                     {
                         opcode: 'closeAd',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: 'Fermer annonce en cours'
+                        text: 'Close current ad'
                     }
                 ],
                 menus: {
@@ -141,7 +141,7 @@
                 console.log(`%c${logMessage}`, `color: ${type === 'error' ? 'red' : type === 'warn' ? 'orange' : 'blue'}`);
             }
 
-            // Stocker l'erreur si c'est une erreur
+            // Store error if it's an error
             if (type === 'error') {
                 if (!this._adErrors[adId]) {
                     this._adErrors[adId] = [];
@@ -155,21 +155,21 @@
             const duration = Math.max(1, Number(args.TIME));
             const baseUrl = String(args.URL);
             
-            this._log(adId, `Début du chargement - Durée: ${duration}s, URL: ${baseUrl}`);
+            this._log(adId, `Starting ad load - Duration: ${duration}s, URL: ${baseUrl}`);
             
-            // Réinitialiser les états pour cette annonce
+            // Reset states for this ad
             this._adSuccess[adId] = false;
             this._adFailed[adId] = false;
             this._adErrors[adId] = [];
             this._currentAdId = adId;
 
-            // Fermer toute annonce en cours
+            // Close any current ad
             this.closeAd();
 
             try {
-                this._log(adId, 'Création de l\'overlay...');
+                this._log(adId, 'Creating overlay...');
                 
-                // Créer l'overlay principal
+                // Create main overlay
                 this._overlay = document.createElement('div');
                 this._overlay.id = 'adOverlay';
                 this._overlay.style.cssText = `
@@ -186,46 +186,47 @@
                     justify-content: center;
                 `;
 
-                // Créer l'iframe pour l'annonce
+                // Create iframe for the ad
                 this._iframe = document.createElement('iframe');
                 this._iframe.style.cssText = `
                     width: 90vw;
                     height: 80vh;
                     max-width: 800px;
                     max-height: 600px;
-                    border: 2px solid #fff;
-                    border-radius: 10px;
+                    border: 1px solid rgba(255, 255, 255, 0.3);
+                    border-radius: 4px;
                     background: white;
+                    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
                 `;
                 
-                // Construire l'URL avec l'ID
+                // Build URL with ID
                 const adUrl = baseUrl.includes('?') 
                     ? `${baseUrl}&id=${adId}` 
                     : `${baseUrl}?id=${adId}`;
                 
-                this._log(adId, `URL finale: ${adUrl}`);
+                this._log(adId, `Final URL: ${adUrl}`);
 
-                // Créer le compteur visuel avec debug info
+                // Create professional timer display
                 const counterDiv = document.createElement('div');
                 counterDiv.id = 'adCounter';
                 counterDiv.style.cssText = `
                     position: absolute;
                     top: 20px;
                     right: 20px;
-                    background: linear-gradient(45deg, #FF6B6B, #FF5252);
+                    background: rgba(0, 0, 0, 0.7);
                     color: white;
-                    padding: 15px 25px;
-                    border-radius: 25px;
+                    padding: 8px 16px;
+                    border-radius: 4px;
                     font-family: Arial, sans-serif;
-                    font-size: 16px;
-                    font-weight: bold;
-                    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-                    border: 2px solid white;
-                    min-width: 250px;
+                    font-size: 14px;
+                    font-weight: normal;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+                    border: 1px solid rgba(255, 255, 255, 0.2);
+                    min-width: 80px;
                     text-align: center;
                 `;
 
-                // Créer une zone de debug
+                // Create debug area
                 const debugDiv = document.createElement('div');
                 debugDiv.id = 'debugInfo';
                 debugDiv.style.cssText = `
@@ -244,60 +245,35 @@
                     display: ${this._debugMode ? 'block' : 'none'};
                 `;
 
-                // Créer le bouton de fermeture
-                const closeButton = document.createElement('button');
-                closeButton.innerHTML = '✕';
-                closeButton.style.cssText = `
-                    position: absolute;
-                    top: 20px;
-                    left: 20px;
-                    background: rgba(255, 255, 255, 0.2);
-                    color: white;
-                    border: 2px solid white;
-                    border-radius: 50%;
-                    width: 50px;
-                    height: 50px;
-                    font-size: 20px;
-                    cursor: pointer;
-                    display: none;
-                    align-items: center;
-                    justify-content: center;
-                `;
-
-                // Ajouter les éléments à l'overlay
+                // Add elements to overlay
                 this._overlay.appendChild(this._iframe);
                 this._overlay.appendChild(counterDiv);
                 this._overlay.appendChild(debugDiv);
-                this._overlay.appendChild(closeButton);
                 document.body.appendChild(this._overlay);
 
-                this._log(adId, 'Overlay créé et ajouté au DOM');
+                this._log(adId, 'Overlay created and added to DOM');
 
-                // Gestion des événements de l'iframe
+                // Handle iframe events
                 this._iframe.onload = () => {
-                    this._log(adId, 'Iframe chargée avec succès');
+                    this._log(adId, 'Iframe loaded successfully');
                     debugDiv.innerHTML += '<br>✅ Iframe loaded';
                 };
 
                 this._iframe.onerror = (error) => {
-                    this._log(adId, `Erreur de chargement iframe: ${error}`, 'error');
+                    this._log(adId, `Iframe loading error: ${error}`, 'error');
                     debugDiv.innerHTML += '<br>❌ Iframe error';
-                    this._finishAd(adId, false, 'Erreur de chargement de l\'iframe');
+                    this._finishAd(adId, false, 'Iframe loading error');
                 };
 
-                // Définir la source après avoir configuré les événements
+                // Set source after configuring events
                 this._iframe.src = adUrl;
-                this._log(adId, 'Source de l\'iframe définie');
+                this._log(adId, 'Iframe source set');
 
                 let remainingTime = duration;
-                let debugMessages = [`Démarrage AD-${adId}`, `Durée: ${duration}s`, `URL: ${adUrl}`];
+                let debugMessages = [`Starting AD-${adId}`, `Duration: ${duration}s`, `URL: ${adUrl}`];
                 
                 const updateDisplay = () => {
-                    counterDiv.innerHTML = `
-                        <div>Annonce ID: ${adId}</div>
-                        <div>${remainingTime}s restantes</div>
-                        <div style="font-size: 12px; margin-top: 5px;">Status: En cours</div>
-                    `;
+                    counterDiv.innerHTML = `${remainingTime}s`;
                     
                     if (this._debugMode) {
                         debugDiv.innerHTML = debugMessages.join('<br>');
@@ -307,95 +283,81 @@
 
                 updateDisplay();
 
-                // Démarrer le compteur
+                // Start timer
                 this._counter = setInterval(() => {
                     remainingTime--;
                     debugMessages.push(`T-${remainingTime}s`);
                     
-                    this._log(adId, `Temps restant: ${remainingTime}s`);
+                    this._log(adId, `Time remaining: ${remainingTime}s`);
                     
                     if (remainingTime > 0) {
                         updateDisplay();
-                        
-                        // Afficher le bouton de fermeture après 5 secondes
-                        if (duration - remainingTime >= 5) {
-                            closeButton.style.display = 'flex';
-                            if (debugMessages.indexOf('Close button visible') === -1) {
-                                debugMessages.push('Close button visible');
-                            }
-                        }
 
-                        // Vérifier si l'iframe est toujours accessible
+                        // Check if iframe is still accessible
                         try {
                             if (this._iframe && this._iframe.contentWindow) {
                                 debugMessages.push(`Frame OK`);
                             }
                         } catch (e) {
                             debugMessages.push(`Frame access error: ${e.message}`);
-                            this._log(adId, `Erreur d'accès iframe: ${e.message}`, 'warn');
+                            this._log(adId, `Iframe access error: ${e.message}`, 'warn');
                         }
                         
                     } else {
-                        // Temps écoulé - annonce terminée avec succès
-                        this._log(adId, 'Annonce terminée avec succès (temps écoulé)');
-                        this._finishAd(adId, true, 'Temps écoulé normalement');
+                        // Time elapsed - ad finished successfully
+                        this._log(adId, 'Ad finished successfully (time elapsed)');
+                        this._finishAd(adId, true, 'Time elapsed normally');
                     }
                 }, 1000);
 
-                // Vérification de chargement après 3 secondes
+                // Connectivity check after 3 seconds
                 setTimeout(() => {
                     if (this._iframe && this._iframe.src) {
                         try {
-                            // Test de connectivité
+                            // Connectivity test
                             const testImg = new Image();
                             testImg.onload = () => {
-                                this._log(adId, 'Test de connectivité réussi');
+                                this._log(adId, 'Connectivity test successful');
                                 debugMessages.push('✅ Connectivity OK');
                             };
                             testImg.onerror = () => {
-                                this._log(adId, 'Test de connectivité échoué', 'warn');
+                                this._log(adId, 'Connectivity test failed', 'warn');
                                 debugMessages.push('⚠️ Connectivity issue');
                             };
                             testImg.src = baseUrl.split('?')[0] + '/favicon.ico';
                         } catch (e) {
-                            this._log(adId, `Erreur test connectivité: ${e.message}`, 'error');
+                            this._log(adId, `Connectivity test error: ${e.message}`, 'error');
                         }
                     }
                 }, 3000);
 
-                // Timeout de sécurité plus long
+                // Safety timeout
                 setTimeout(() => {
                     if (this._currentAdId === adId && this._iframe) {
-                        this._log(adId, 'Timeout de sécurité atteint', 'warn');
-                        // Ne pas fermer automatiquement, juste logger
+                        this._log(adId, 'Safety timeout reached', 'warn');
+                        // Don't close automatically, just log
                     }
                 }, 10000);
 
-                // Gestion du clic sur le bouton de fermeture
-                closeButton.onclick = () => {
-                    this._log(adId, 'Fermeture manuelle par l\'utilisateur');
-                    this._finishAd(adId, false, 'Fermé manuellement par l\'utilisateur');
-                };
-
             } catch (error) {
-                this._log(adId, `Erreur critique: ${error.message}`, 'error');
-                this._finishAd(adId, false, `Erreur critique: ${error.message}`);
+                this._log(adId, `Critical error: ${error.message}`, 'error');
+                this._finishAd(adId, false, `Critical error: ${error.message}`);
             }
         }
 
         _finishAd(adId, success, reason = '') {
-            this._log(adId, `Fin d'annonce - Succès: ${success}, Raison: ${reason}`);
+            this._log(adId, `Ad finished - Success: ${success}, Reason: ${reason}`);
             
-            // Nettoyer les timers
+            // Clean up timers
             if (this._counter) {
                 clearInterval(this._counter);
                 this._counter = null;
             }
 
-            // Fermer l'overlay
+            // Close overlay
             this.closeAd();
 
-            // Mettre à jour les états
+            // Update states
             if (success) {
                 this._adSuccess[adId] = true;
                 this._adFailed[adId] = false;
@@ -403,19 +365,19 @@
                 this._adSuccess[adId] = false;
                 this._adFailed[adId] = true;
                 if (reason) {
-                    this._log(adId, `Échec: ${reason}`, 'error');
+                    this._log(adId, `Failure: ${reason}`, 'error');
                 }
             }
 
             this._currentAdId = null;
 
-            // Déclencher les événements après un court délai
+            // Trigger events after a short delay
             setTimeout(() => {
                 if (success) {
-                    this._log(adId, 'Déclenchement événement succès');
+                    this._log(adId, 'Triggering success event');
                     Scratch.vm.runtime.startHats('adRewards_onAdFinished', { AD_ID: adId });
                 } else {
-                    this._log(adId, 'Déclenchement événement échec');
+                    this._log(adId, 'Triggering failure event');
                     Scratch.vm.runtime.startHats('adRewards_onAdFailed', { AD_ID: adId });
                 }
             }, 100);
@@ -461,7 +423,7 @@
             if (errors && errors.length > 0) {
                 return errors[errors.length - 1];
             }
-            return 'Aucune erreur';
+            return 'No errors';
         }
 
         getAllErrors(args) {
@@ -470,16 +432,16 @@
             if (errors && errors.length > 0) {
                 return errors.join(' | ');
             }
-            return 'Aucune erreur';
+            return 'No errors';
         }
 
         toggleDebug(args) {
             this._debugMode = args.STATE === 'ON';
-            console.log(`Mode debug ${this._debugMode ? 'activé' : 'désactivé'}`);
+            console.log(`Debug mode ${this._debugMode ? 'enabled' : 'disabled'}`);
         }
     }
 
-    // Enregistrer l'extension
+    // Register the extension
     Scratch.extensions.register(new AdRewards());
 
 })(window.Scratch);
