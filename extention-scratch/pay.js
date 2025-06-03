@@ -1,7 +1,7 @@
 ;((Scratch) => {
     class SecureStripePurchaseExtension {
       constructor() {
-        this.serverURL = "https://v0-scratch-extension-issue.vercel.app/api" // Remplace par ton URL Vercel
+        this.serverURL = "https://VOTRE-DOMAINE-VERCEL.vercel.app/api" // ⚠️ REMPLACEZ PAR VOTRE URL VERCEL
         this.purchasedItems = new Set()
         this.userId = this._generateUserId()
         this.checkIntervals = new Map()
@@ -18,24 +18,24 @@
           color2: "#4F46E5",
           blocks: [
             {
-              opcode: "purchaseItem",
+              opcode: "purchaseWithLink",
               blockType: Scratch.BlockType.COMMAND,
-              text: "💳 Purchase [ITEM_NAME]",
+              text: "💳 Purchase with link [PAYMENT_LINK]",
               arguments: {
-                ITEM_NAME: {
+                PAYMENT_LINK: {
                   type: Scratch.ArgumentType.STRING,
-                  menu: "ITEMS",
+                  defaultValue: "https://buy.stripe.com/test_...",
                 },
               },
             },
             {
-              opcode: "hasPurchased",
+              opcode: "hasPurchasedLink",
               blockType: Scratch.BlockType.BOOLEAN,
-              text: "Has purchased [ITEM_NAME]?",
+              text: "Has purchased [PAYMENT_LINK]?",
               arguments: {
-                ITEM_NAME: {
+                PAYMENT_LINK: {
                   type: Scratch.ArgumentType.STRING,
-                  menu: "ITEMS",
+                  defaultValue: "https://buy.stripe.com/test_...",
                 },
               },
             },
@@ -59,13 +59,12 @@
               blockType: Scratch.BlockType.COMMAND,
               text: "📊 Show purchase status",
             },
-          ],
-          menus: {
-            ITEMS: {
-              acceptReporters: false,
-              items: ["Premium Skin", "VIP Access", "Power Pack"],
+            {
+              opcode: "getLastPurchase",
+              blockType: Scratch.BlockType.REPORTER,
+              text: "Last purchased item",
             },
-          },
+          ],
         }
       }
   
@@ -76,6 +75,13 @@
           localStorage.setItem("secureStripeUserId", userId)
         }
         return userId
+      }
+  
+      _extractProductIdFromLink(paymentLink) {
+        // Extraire l'ID du produit depuis le Payment Link
+        // Format: https://buy.stripe.com/test_xxxxx ou https://buy.stripe.com/xxxxx
+        const match = paymentLink.match(/buy\.stripe\.com\/(test_)?(.+)$/)
+        return match ? match[2] : paymentLink
       }
   
       async _loadPurchasesFromServer() {
@@ -91,44 +97,50 @@
         }
       }
   
-      async purchaseItem(args) {
-        const itemName = args.ITEM_NAME
+      async purchaseWithLink(args) {
+        const paymentLink = args.PAYMENT_LINK.trim()
   
-        if (this.purchasedItems.has(itemName)) {
-          this._showNotification(`✅ ${itemName} already purchased!`, "info")
+        if (!paymentLink || !paymentLink.includes("buy.stripe.com")) {
+          this._showNotification("❌ Invalid Stripe Payment Link", "error")
+          return
+        }
+  
+        const productId = this._extractProductIdFromLink(paymentLink)
+  
+        if (this.purchasedItems.has(productId)) {
+          this._showNotification(`✅ Item already purchased!`, "info")
           return
         }
   
         try {
-          // Créer une session de checkout sécurisée
-          const response = await fetch(`${this.serverURL}/create-checkout`, {
+          // Créer une session de checkout avec le Payment Link
+          const response = await fetch(`${this.serverURL}/create-checkout-link`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
               userId: this.userId,
-              itemName: itemName,
-              successUrl: `${window.location.origin}/success`,
-              cancelUrl: `${window.location.origin}/cancel`,
+              paymentLink: paymentLink,
+              productId: productId,
             }),
           })
   
           if (!response.ok) {
-            throw new Error("Failed to create checkout session")
+            throw new Error("Failed to process payment link")
           }
   
-          const { sessionId, url } = await response.json()
+          const { sessionId, url, productName } = await response.json()
   
           // Afficher la fenêtre de confirmation
-          this._showCheckoutConfirmation(itemName, url, sessionId)
+          this._showCheckoutConfirmation(productName || "Item", url, sessionId, productId)
         } catch (error) {
           console.error("❌ Purchase failed:", error)
           this._showNotification("❌ Failed to start purchase", "error")
         }
       }
   
-      _showCheckoutConfirmation(itemName, checkoutUrl, sessionId) {
+      _showCheckoutConfirmation(itemName, checkoutUrl, sessionId, productId) {
         const overlay = document.createElement("div")
         overlay.style.cssText = `
                   position: fixed;
@@ -155,20 +167,13 @@
                   text-align: center;
               `
   
-        // Définir les prix pour l'affichage
-        const prices = {
-          "Premium Skin": "€2.99",
-          "VIP Access": "€4.99",
-          "Power Pack": "€9.99",
-        }
-  
         modal.innerHTML = `
                   <div style="margin-bottom: 20px;">
                       <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #635BFF, #4F46E5); border-radius: 50%; margin: 0 auto 16px; display: flex; align-items: center; justify-content: center;">
                           <span style="font-size: 24px;">🔒</span>
                       </div>
                       <h2 style="margin: 0 0 8px 0; color: #1a1a1a; font-size: 24px; font-weight: 600;">Secure Purchase</h2>
-                      <p style="margin: 0; color: #666; font-size: 14px;">Purchase "${itemName}" for ${prices[itemName] || "€?.??"}</p>
+                      <p style="margin: 0; color: #666; font-size: 14px;">Purchase "${itemName}"</p>
                   </div>
   
                   <div style="background: #f8f9fa; border-radius: 8px; padding: 16px; margin: 20px 0;">
@@ -209,7 +214,7 @@
                   </div>
   
                   <p style="margin: 16px 0 0 0; color: #999; font-size: 11px;">
-                      Session ID: ${sessionId.substring(0, 20)}...
+                      Product ID: ${productId.substring(0, 20)}...
                   </p>
               `
   
@@ -231,7 +236,7 @@
           overlay.remove()
   
           // Commencer la vérification automatique
-          this._startSecurePurchaseCheck(itemName, sessionId, checkoutWindow)
+          this._startSecurePurchaseCheck(itemName, productId, checkoutWindow)
         })
   
         overlay.addEventListener("click", (e) => {
@@ -241,7 +246,7 @@
         })
       }
   
-      _startSecurePurchaseCheck(itemName, sessionId, checkoutWindow) {
+      _startSecurePurchaseCheck(itemName, productId, checkoutWindow) {
         this._showNotification(`🔄 Processing payment for ${itemName}...`, "info")
   
         let checkCount = 0
@@ -259,7 +264,7 @@
               },
               body: JSON.stringify({
                 userId: this.userId,
-                itemName: itemName,
+                productId: productId,
               }),
             })
   
@@ -268,7 +273,7 @@
   
               if (purchased) {
                 // Achat confirmé par le serveur !
-                this.purchasedItems.add(itemName)
+                this.purchasedItems.add(productId)
                 this._showNotification(`✅ ${itemName} purchased and verified!`, "success")
   
                 // Fermer la fenêtre de checkout si elle est encore ouverte
@@ -277,7 +282,7 @@
                 }
   
                 clearInterval(checkInterval)
-                this.checkIntervals.delete(itemName)
+                this.checkIntervals.delete(productId)
                 return
               }
             }
@@ -289,11 +294,11 @@
           if (checkoutWindow.closed) {
             // Faire une dernière vérification
             setTimeout(() => {
-              this._verifyPurchaseOnReturn(itemName)
+              this._verifyPurchaseOnReturn(productId)
             }, 2000)
   
             clearInterval(checkInterval)
-            this.checkIntervals.delete(itemName)
+            this.checkIntervals.delete(productId)
             return
           }
   
@@ -301,14 +306,14 @@
           if (checkCount >= maxChecks) {
             this._showNotification("⏰ Purchase verification timeout", "warning")
             clearInterval(checkInterval)
-            this.checkIntervals.delete(itemName)
+            this.checkIntervals.delete(productId)
           }
         }, 2000) // Vérifier toutes les 2 secondes
   
-        this.checkIntervals.set(itemName, checkInterval)
+        this.checkIntervals.set(productId, checkInterval)
       }
   
-      async _verifyPurchaseOnReturn(itemName) {
+      async _verifyPurchaseOnReturn(productId) {
         try {
           const response = await fetch(`${this.serverURL}/check-purchase`, {
             method: "POST",
@@ -317,7 +322,7 @@
             },
             body: JSON.stringify({
               userId: this.userId,
-              itemName: itemName,
+              productId: productId,
             }),
           })
   
@@ -325,10 +330,10 @@
             const { purchased } = await response.json()
   
             if (purchased) {
-              this.purchasedItems.add(itemName)
-              this._showNotification(`✅ ${itemName} verified and unlocked!`, "success")
+              this.purchasedItems.add(productId)
+              this._showNotification(`✅ Item verified and unlocked!`, "success")
             } else {
-              this._showNotification(`ℹ️ Purchase not detected for ${itemName}`, "info")
+              this._showNotification(`ℹ️ Purchase not detected`, "info")
             }
           }
         } catch (error) {
@@ -336,11 +341,17 @@
         }
       }
   
-      async hasPurchased(args) {
-        const itemName = args.ITEM_NAME
+      async hasPurchasedLink(args) {
+        const paymentLink = args.PAYMENT_LINK.trim()
+  
+        if (!paymentLink || !paymentLink.includes("buy.stripe.com")) {
+          return false
+        }
+  
+        const productId = this._extractProductIdFromLink(paymentLink)
   
         // Vérifier d'abord localement
-        if (this.purchasedItems.has(itemName)) {
+        if (this.purchasedItems.has(productId)) {
           return true
         }
   
@@ -353,14 +364,14 @@
             },
             body: JSON.stringify({
               userId: this.userId,
-              itemName: itemName,
+              productId: productId,
             }),
           })
   
           if (response.ok) {
             const { purchased } = await response.json()
             if (purchased) {
-              this.purchasedItems.add(itemName)
+              this.purchasedItems.add(productId)
               return true
             }
           }
@@ -383,6 +394,11 @@
   
       getUserId() {
         return this.userId
+      }
+  
+      getLastPurchase() {
+        const purchases = [...this.purchasedItems]
+        return purchases.length > 0 ? purchases[purchases.length - 1] : ""
       }
   
       showPurchaseStatus() {
@@ -451,7 +467,7 @@
                                 (item) => `
                               <div style="display: flex; align-items: center; gap: 8px; padding: 8px; background: #e8f5e8; border-radius: 6px; margin-bottom: 6px;">
                                   <span style="color: #28a745;">🔒</span>
-                                  <span style="color: #1a1a1a; font-weight: 500;">${item}</span>
+                                  <span style="color: #1a1a1a; font-weight: 500; font-family: monospace; font-size: 12px;">${item}</span>
                                   <span style="color: #28a745; font-size: 12px; margin-left: auto;">Verified</span>
                               </div>
                           `,
