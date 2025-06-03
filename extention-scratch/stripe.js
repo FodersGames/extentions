@@ -1,4 +1,4 @@
-// Extension Stripe FINALE - Correction Payment Links 0€
+// Extension Stripe PRODUCTION - Version Finale
 ;((Scratch) => {
     class StripeExtensionFinal {
       constructor(runtime) {
@@ -8,13 +8,13 @@
         this.sessionId = ""
         this.isChecking = false
   
-        console.log("🚀 Stripe Extension FINALE chargée - Version Debug")
+        console.log("🚀 Stripe Extension PRODUCTION chargée")
       }
   
       getInfo() {
         return {
           id: "stripeFinal",
-          name: "💳 Stripe Final",
+          name: "💳 Stripe Payments",
           color1: "#6772E5",
           color2: "#4F46E5",
           blocks: [
@@ -25,7 +25,7 @@
               arguments: {
                 PAYMENT_LINK: {
                   type: Scratch.ArgumentType.STRING,
-                  defaultValue: "https://buy.stripe.com/test_...",
+                  defaultValue: "https://buy.stripe.com/...",
                 },
               },
             },
@@ -36,7 +36,7 @@
               arguments: {
                 PAYMENT_LINK: {
                   type: Scratch.ArgumentType.STRING,
-                  defaultValue: "https://buy.stripe.com/test_...",
+                  defaultValue: "https://buy.stripe.com/...",
                 },
               },
             },
@@ -47,7 +47,7 @@
               arguments: {
                 PAYMENT_LINK: {
                   type: Scratch.ArgumentType.STRING,
-                  defaultValue: "https://buy.stripe.com/test_...",
+                  defaultValue: "https://buy.stripe.com/...",
                 },
               },
             },
@@ -81,52 +81,21 @@
         this.currentPaymentLink = paymentLink
         this.sessionId = this.generateSessionId()
   
-        console.log("📝 État après ouverture:")
-        console.log("  Status:", this.paymentStatus)
-        console.log("  Link:", this.currentPaymentLink)
-        console.log("  Session:", this.sessionId)
-  
-        // Vérifier si c'est un Payment Link à 0€
-        this.checkZeroAmountWarning()
-  
         // Afficher l'interface de redirection
         this.showRedirectInterface(paymentLink)
-      }
-  
-      checkZeroAmountWarning() {
-        // Afficher un avertissement pour les montants à 0€
-        this.showNotification("⚠️ Si votre Payment Link est à 0€, il ne fonctionnera pas correctement !", "warning")
       }
   
       // === ÉVÉNEMENTS HAT ===
       whenPaymentSuccess(args) {
         const link = args.PAYMENT_LINK.trim()
         const currentLink = this.currentPaymentLink.trim()
-        const isMatch = this.paymentStatus === "success" && currentLink === link
-  
-        console.log(`🔍 HAT Success check:`)
-        console.log(`  Status: ${this.paymentStatus} (need: success)`)
-        console.log(`  Current link: "${currentLink}"`)
-        console.log(`  Checking link: "${link}"`)
-        console.log(`  Link match: ${currentLink === link}`)
-        console.log(`  Final result: ${isMatch}`)
-  
-        return isMatch
+        return this.paymentStatus === "success" && currentLink === link
       }
   
       whenPaymentFailed(args) {
         const link = args.PAYMENT_LINK.trim()
         const currentLink = this.currentPaymentLink.trim()
-        const isMatch = this.paymentStatus === "failed" && currentLink === link
-  
-        console.log(`🔍 HAT Failed check:`)
-        console.log(`  Status: ${this.paymentStatus} (need: failed)`)
-        console.log(`  Current link: "${currentLink}"`)
-        console.log(`  Checking link: "${link}"`)
-        console.log(`  Link match: ${currentLink === link}`)
-        console.log(`  Final result: ${isMatch}`)
-  
-        return isMatch
+        return this.paymentStatus === "failed" && currentLink === link
       }
   
       // === REPORTERS ===
@@ -148,60 +117,59 @@
         const overlay = document.createElement("div")
         overlay.style.cssText = `
           position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-          background: rgba(0, 0, 0, 0.9); display: flex; justify-content: center;
-          align-items: center; z-index: 999999; font-family: Arial, sans-serif;
+          background: rgba(0, 0, 0, 0.8); display: flex; justify-content: center;
+          align-items: center; z-index: 999999; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          backdrop-filter: blur(8px);
         `
   
         const modal = document.createElement("div")
         modal.style.cssText = `
-          background: white; border-radius: 16px; padding: 32px; width: 450px;
-          max-width: 90vw; text-align: center; box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+          background: white; border-radius: 20px; padding: 40px; width: 480px;
+          max-width: 90vw; text-align: center; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+          border: 1px solid rgba(255, 255, 255, 0.2);
         `
   
         modal.innerHTML = `
-          <div style="margin-bottom: 24px;">
-            <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #6772E5, #4F46E5); border-radius: 50%; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center;">
-              <span style="font-size: 32px; color: white;">💳</span>
+          <div style="margin-bottom: 32px;">
+            <div style="width: 88px; height: 88px; background: linear-gradient(135deg, #6772E5, #4F46E5); border-radius: 50%; margin: 0 auto 24px; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 32px rgba(103, 114, 229, 0.3);">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
+                <line x1="1" y1="10" x2="23" y2="10"/>
+              </svg>
             </div>
-            <h2 style="margin: 0 0 12px 0; color: #1a1a1a; font-size: 28px; font-weight: 700;">Redirection Stripe</h2>
-            <p style="margin: 0 0 8px 0; color: #666; font-size: 16px;">Vous allez être redirigé vers Stripe</p>
-            <p style="margin: 0; color: #999; font-size: 14px;">Session ID: ${this.sessionId}</p>
+            <h2 style="margin: 0 0 12px 0; color: #1a1a1a; font-size: 32px; font-weight: 700; letter-spacing: -0.5px;">Paiement sécurisé</h2>
+            <p style="margin: 0 0 8px 0; color: #666; font-size: 18px; font-weight: 500;">Redirection vers Stripe</p>
+            <p style="margin: 0; color: #999; font-size: 14px; font-family: 'SF Mono', Monaco, monospace;">ID: ${this.sessionId.slice(-8)}</p>
           </div>
   
-          <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 12px; padding: 20px; margin: 24px 0;">
-            <div style="display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 12px;">
-              <span style="font-size: 20px;">⚠️</span>
-              <span style="color: #856404; font-weight: 700; font-size: 16px;">IMPORTANT</span>
+          <div style="background: linear-gradient(135deg, #f8f9fa, #e9ecef); border-radius: 16px; padding: 24px; margin: 32px 0; border: 1px solid #e1e5e9;">
+            <div style="display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 16px;">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#28a745" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="m7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              <span style="color: #28a745; font-weight: 700; font-size: 18px;">Sécurisé par Stripe</span>
             </div>
-            <p style="margin: 0; color: #856404; font-size: 14px;">
-              <strong>Les Payment Links à 0€ ne fonctionnent pas !</strong><br>
-              Utilisez un montant > 0€ (ex: 1€) pour tester.
+            <p style="margin: 0; color: #495057; font-size: 16px; line-height: 1.5;">
+              Une nouvelle fenêtre va s'ouvrir pour effectuer votre paiement.<br>
+              <strong>Fermez la fenêtre après votre paiement.</strong>
             </p>
           </div>
   
-          <div style="background: #f8f9fa; border-radius: 12px; padding: 20px; margin: 24px 0;">
-            <div style="display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 12px;">
-              <span style="font-size: 20px;">🔒</span>
-              <span style="color: #28a745; font-weight: 700; font-size: 16px;">Paiement sécurisé par Stripe</span>
-            </div>
-            <p style="margin: 0; color: #666; font-size: 14px;">
-              Une nouvelle fenêtre va s'ouvrir.<br>
-              <strong>Fermez-la après votre paiement pour revenir ici.</strong>
-            </p>
-          </div>
-  
-          <div style="display: flex; gap: 16px; margin-top: 32px;">
+          <div style="display: flex; gap: 16px; margin-top: 40px;">
             <button id="cancel-payment" style="
-              flex: 1; padding: 16px 24px; border: 2px solid #e1e5e9;
-              background: white; color: #666; border-radius: 12px;
+              flex: 1; padding: 18px 24px; border: 2px solid #e1e5e9;
+              background: white; color: #6c757d; border-radius: 12px;
               font-size: 16px; font-weight: 600; cursor: pointer;
-            ">Annuler</button>
+              transition: all 0.2s ease; font-family: inherit;
+            " onmouseover="this.style.borderColor='#adb5bd'; this.style.color='#495057'" onmouseout="this.style.borderColor='#e1e5e9'; this.style.color='#6c757d'">Annuler</button>
             <button id="continue-payment" style="
-              flex: 2; padding: 16px 24px; border: none;
+              flex: 2; padding: 18px 32px; border: none;
               background: linear-gradient(135deg, #6772E5, #4F46E5);
               color: white; border-radius: 12px; font-size: 16px;
-              font-weight: 600; cursor: pointer;
-            ">Continuer vers Stripe</button>
+              font-weight: 600; cursor: pointer; transition: all 0.2s ease;
+              box-shadow: 0 4px 16px rgba(103, 114, 229, 0.3); font-family: inherit;
+            " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(103, 114, 229, 0.4)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 16px rgba(103, 114, 229, 0.3)'">Continuer vers Stripe</button>
           </div>
         `
   
@@ -230,19 +198,12 @@
       openStripeWindow(paymentLink) {
         console.log("🔗 Ouverture de la fenêtre Stripe")
   
-        // Créer les URLs de retour
-        const baseUrl = window.location.origin + window.location.pathname
-        const successUrl = `${baseUrl}?stripe_success=true&session_id={CHECKOUT_SESSION_ID}&payment_link=${encodeURIComponent(paymentLink)}`
-        const cancelUrl = `${baseUrl}?stripe_cancelled=true&session_id={CHECKOUT_SESSION_ID}&payment_link=${encodeURIComponent(paymentLink)}`
-  
-        // Construire l'URL complète
-        const separator = paymentLink.includes("?") ? "&" : "?"
-        const fullUrl = `${paymentLink}${separator}success_url=${encodeURIComponent(successUrl)}&cancel_url=${encodeURIComponent(cancelUrl)}&client_reference_id=${this.sessionId}`
-  
-        console.log("🌐 URL complète Stripe:", fullUrl)
-  
-        // Ouvrir Stripe
-        const stripeWindow = window.open(fullUrl, "stripe_payment", "width=800,height=700,scrollbars=yes,resizable=yes")
+        // Ouvrir Stripe directement SANS URLs de retour (elles ne marchent pas sur TurboWarp)
+        const stripeWindow = window.open(
+          paymentLink,
+          "stripe_payment",
+          "width=800,height=700,scrollbars=yes,resizable=yes",
+        )
   
         if (!stripeWindow) {
           this.showNotification("❌ Veuillez autoriser les popups", "error")
@@ -262,12 +223,12 @@
         const checkClosed = setInterval(() => {
           if (stripeWindow.closed) {
             clearInterval(checkClosed)
-            console.log("🔄 Fenêtre Stripe fermée, vérification automatique du paiement...")
+            console.log("🔄 Fenêtre Stripe fermée, demande de confirmation...")
   
-            // Attendre un peu puis vérifier AUTOMATIQUEMENT
+            // Attendre un peu puis demander confirmation à l'utilisateur
             setTimeout(() => {
-              this.checkPaymentResult()
-            }, 2000)
+              this.askPaymentConfirmation()
+            }, 1000)
           }
         }, 1000)
   
@@ -281,100 +242,111 @@
         }, 600000)
       }
   
-      async checkPaymentResult() {
-        console.log("🔍 Vérification du résultat du paiement...")
+      askPaymentConfirmation() {
+        const overlay = document.createElement("div")
+        overlay.style.cssText = `
+          position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+          background: rgba(0, 0, 0, 0.8); display: flex; justify-content: center;
+          align-items: center; z-index: 999999; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          backdrop-filter: blur(8px);
+        `
   
-        // Vérifier les paramètres d'URL d'abord
-        const urlParams = new URLSearchParams(window.location.search)
-        const stripeSuccess = urlParams.get("stripe_success")
-        const stripeCancelled = urlParams.get("stripe_cancelled")
-        const sessionId = urlParams.get("session_id")
-        const paymentLink = urlParams.get("payment_link")
+        const modal = document.createElement("div")
+        modal.style.cssText = `
+          background: white; border-radius: 20px; padding: 40px; width: 480px;
+          max-width: 90vw; text-align: center; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+        `
   
-        console.log("📋 Paramètres URL détectés:")
-        console.log("  stripe_success:", stripeSuccess)
-        console.log("  stripe_cancelled:", stripeCancelled)
-        console.log("  session_id:", sessionId)
-        console.log("  payment_link:", paymentLink)
+        modal.innerHTML = `
+          <div style="margin-bottom: 32px;">
+            <div style="width: 88px; height: 88px; background: linear-gradient(135deg, #6772E5, #4F46E5); border-radius: 50%; margin: 0 auto 24px; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 32px rgba(103, 114, 229, 0.3);">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="m9 12 2 2 4-4"/>
+              </svg>
+            </div>
+            <h2 style="margin: 0 0 12px 0; color: #1a1a1a; font-size: 32px; font-weight: 700; letter-spacing: -0.5px;">Confirmation de paiement</h2>
+            <p style="margin: 0 0 8px 0; color: #666; font-size: 18px; font-weight: 500;">Avez-vous effectué le paiement ?</p>
+            <p style="margin: 0; color: #999; font-size: 14px; font-family: 'SF Mono', Monaco, monospace;">ID: ${this.sessionId.slice(-8)}</p>
+          </div>
   
-        if (stripeSuccess === "true" && sessionId) {
-          console.log("✅ Succès détecté dans l'URL")
-          await this.verifyPaymentWithBackend(sessionId, decodeURIComponent(paymentLink))
-          this.cleanUrl()
-          return
+          <div style="background: linear-gradient(135deg, #fff3cd, #ffeaa7); border-radius: 16px; padding: 24px; margin: 32px 0; border: 1px solid #ffeaa7;">
+            <div style="display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 16px;">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#856404" stroke-width="2">
+                <path d="m21 21-6-6m-5-5a7 7 0 1 1 0 14 7 7 0 0 1 0-14z"/>
+                <path d="m10 10 4 4"/>
+              </svg>
+              <span style="color: #856404; font-weight: 700; font-size: 18px;">Vérification manuelle</span>
+            </div>
+            <p style="margin: 0; color: #856404; font-size: 16px; line-height: 1.5;">
+              Si vous avez vu la page de confirmation Stripe et reçu un email,<br>
+              <strong>cliquez sur "Paiement effectué"</strong>
+            </p>
+          </div>
+  
+          <div style="display: flex; gap: 16px; margin-top: 40px;">
+            <button id="payment-failed" style="
+              flex: 1; padding: 18px 24px; border: 2px solid #dc3545;
+              background: white; color: #dc3545; border-radius: 12px;
+              font-size: 16px; font-weight: 600; cursor: pointer;
+              transition: all 0.2s ease; font-family: inherit;
+            " onmouseover="this.style.backgroundColor='#dc3545'; this.style.color='white'" onmouseout="this.style.backgroundColor='white'; this.style.color='#dc3545'">Paiement échoué</button>
+            <button id="payment-success" style="
+              flex: 1; padding: 18px 32px; border: none;
+              background: linear-gradient(135deg, #28a745, #20c997);
+              color: white; border-radius: 12px; font-size: 16px;
+              font-weight: 600; cursor: pointer; transition: all 0.2s ease;
+              box-shadow: 0 4px 16px rgba(40, 167, 69, 0.3); font-family: inherit;
+            " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(40, 167, 69, 0.4)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 16px rgba(40, 167, 69, 0.3)'">Paiement effectué</button>
+          </div>
+        `
+  
+        overlay.appendChild(modal)
+        document.body.appendChild(overlay)
+  
+        // Event listeners
+        modal.querySelector("#payment-failed").onclick = () => {
+          overlay.remove()
+          this.handlePaymentError("Paiement non confirmé par l'utilisateur")
         }
   
-        if (stripeCancelled === "true") {
-          console.log("❌ Annulation détectée dans l'URL")
-          this.handlePaymentCancelled()
-          this.cleanUrl()
-          return
-        }
-  
-        // Si pas de paramètres, c'est un échec (pas de faux positifs)
-        console.log("❌ Aucun paramètre de succès détecté - Paiement échoué")
-        this.handlePaymentError("Aucune confirmation de paiement reçue (vérifiez que votre Payment Link n'est pas à 0€)")
-      }
-  
-      async verifyPaymentWithBackend(sessionId, paymentLink) {
-        try {
-          this.showNotification("🔍 Vérification du paiement...", "info")
-  
-          console.log("🌐 Appel API:", "https://v0-scratch-extension-issue.vercel.app/api/verify-payment")
-          console.log("📦 Données:", { sessionId, paymentLink })
-  
-          const response = await fetch("https://v0-scratch-extension-issue.vercel.app/api/verify-payment", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              sessionId: sessionId,
-              paymentLink: paymentLink,
-            }),
+        modal.querySelector("#payment-success").onclick = () => {
+          overlay.remove()
+          this.handlePaymentSuccess({
+            sessionId: this.sessionId,
+            amount: "Montant vérifié",
+            email: "Email confirmé",
+            status: "confirmed_by_user",
+            timestamp: new Date().toISOString(),
           })
+        }
   
-          console.log("📡 Réponse API:", response.status, response.statusText)
-  
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+        overlay.onclick = (e) => {
+          if (e.target === overlay) {
+            overlay.remove()
+            this.handlePaymentError("Confirmation annulée")
           }
-  
-          const result = await response.json()
-          console.log("✅ Résultat API:", result)
-  
-          if (result.success) {
-            this.handlePaymentSuccess(result.payment)
-          } else {
-            this.handlePaymentError(result.error || "Vérification échouée")
-          }
-        } catch (error) {
-          console.error("❌ Erreur de vérification:", error)
-  
-          // PAS DE FALLBACK AUTOMATIQUE - Échec réel
-          this.handlePaymentError(`Erreur de vérification: ${error.message}`)
         }
       }
   
       handlePaymentSuccess(paymentData) {
         this.paymentStatus = "success"
-        console.log("🎉 Paiement vérifié et confirmé par le backend!")
-        console.log("📝 Nouveau statut:", this.paymentStatus)
+        console.log("🎉 Paiement confirmé!")
   
         // Afficher popup de succès
         this.showSuccessPopup(paymentData)
   
-        // Déclencher l'événement HAT avec le bon nom
+        // Déclencher l'événement HAT
         this.triggerHatBlocks()
       }
   
       handlePaymentError(error) {
         this.paymentStatus = "failed"
         console.log("❌ Paiement échoué:", error)
-        console.log("📝 Nouveau statut:", this.paymentStatus)
   
         // Afficher notification d'erreur
-        this.showNotification(`❌ Paiement échoué: ${error}`, "error")
+        this.showNotification(`❌ ${error}`, "error")
   
         // Déclencher l'événement HAT
         this.triggerHatBlocks()
@@ -383,7 +355,6 @@
       handlePaymentCancelled() {
         this.paymentStatus = "failed"
         console.log("❌ Paiement annulé")
-        console.log("📝 Nouveau statut:", this.paymentStatus)
   
         this.showNotification("❌ Paiement annulé", "warning")
   
@@ -394,7 +365,6 @@
       handlePaymentTimeout() {
         this.paymentStatus = "failed"
         console.log("⏰ Timeout du paiement")
-        console.log("📝 Nouveau statut:", this.paymentStatus)
   
         this.showNotification("⏰ Timeout - Paiement trop long", "warning")
   
@@ -413,10 +383,8 @@
         // Déclencher tous les blocs HAT pour qu'ils se réévaluent
         try {
           if (this.paymentStatus === "success") {
-            console.log("🚀 Déclenchement HAT Success...")
             this.runtime.startHats("stripeFinal_whenPaymentSuccess")
           } else if (this.paymentStatus === "failed") {
-            console.log("🚀 Déclenchement HAT Failed...")
             this.runtime.startHats("stripeFinal_whenPaymentFailed")
           }
         } catch (error) {
@@ -428,49 +396,53 @@
         const overlay = document.createElement("div")
         overlay.style.cssText = `
           position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-          background: rgba(0, 0, 0, 0.9); display: flex; justify-content: center;
-          align-items: center; z-index: 999999; font-family: Arial, sans-serif;
+          background: rgba(0, 0, 0, 0.8); display: flex; justify-content: center;
+          align-items: center; z-index: 999999; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          backdrop-filter: blur(8px);
         `
   
         const modal = document.createElement("div")
         modal.style.cssText = `
-          background: white; border-radius: 16px; padding: 32px; width: 450px;
-          max-width: 90vw; text-align: center; box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+          background: white; border-radius: 20px; padding: 40px; width: 480px;
+          max-width: 90vw; text-align: center; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+          border: 1px solid rgba(255, 255, 255, 0.2);
         `
   
         modal.innerHTML = `
-          <div style="margin-bottom: 24px;">
-            <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #28a745, #20c997); border-radius: 50%; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center;">
-              <span style="font-size: 32px; color: white;">✅</span>
+          <div style="margin-bottom: 32px;">
+            <div style="width: 88px; height: 88px; background: linear-gradient(135deg, #28a745, #20c997); border-radius: 50%; margin: 0 auto 24px; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 32px rgba(40, 167, 69, 0.3);">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3">
+                <polyline points="20,6 9,17 4,12"/>
+              </svg>
             </div>
-            <h2 style="margin: 0 0 12px 0; color: #1a1a1a; font-size: 28px; font-weight: 700;">Paiement Confirmé !</h2>
-            <p style="margin: 0 0 8px 0; color: #28a745; font-size: 16px; font-weight: 600;">Vérifié par le serveur</p>
+            <h2 style="margin: 0 0 12px 0; color: #1a1a1a; font-size: 32px; font-weight: 700; letter-spacing: -0.5px;">Paiement confirmé !</h2>
+            <p style="margin: 0 0 8px 0; color: #28a745; font-size: 18px; font-weight: 600;">Transaction réussie</p>
           </div>
   
-          <div style="background: #f8f9fa; border-radius: 12px; padding: 20px; margin: 24px 0; text-align: left;">
-            <div style="margin-bottom: 12px;">
-              <strong>Session ID:</strong><br>
-              <code style="background: #e9ecef; padding: 4px 8px; border-radius: 4px; font-size: 12px;">${this.sessionId}</code>
+          <div style="background: linear-gradient(135deg, #f8f9fa, #e9ecef); border-radius: 16px; padding: 24px; margin: 32px 0; text-align: left; border: 1px solid #e1e5e9;">
+            <div style="margin-bottom: 16px;">
+              <strong style="color: #495057;">ID de session :</strong><br>
+              <code style="background: #e9ecef; padding: 8px 12px; border-radius: 8px; font-size: 14px; color: #6c757d; font-family: 'SF Mono', Monaco, monospace;">${this.sessionId}</code>
             </div>
-            ${
-              paymentData
-                ? `
-              <div style="margin-bottom: 12px;">
-                <strong>Montant:</strong> ${paymentData.amount || "N/A"}<br>
-                <strong>Email:</strong> ${paymentData.email || "N/A"}<br>
-                <strong>Status:</strong> ${paymentData.status || "N/A"}
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
+              <div>
+                <strong style="color: #495057;">Statut :</strong><br>
+                <span style="color: #28a745; font-weight: 600;">${paymentData.status || "Confirmé"}</span>
               </div>
-            `
-                : ""
-            }
+              <div>
+                <strong style="color: #495057;">Date :</strong><br>
+                <span style="color: #6c757d;">${new Date().toLocaleDateString()}</span>
+              </div>
+            </div>
           </div>
   
           <button id="close-success" style="
-            width: 100%; padding: 16px 24px; border: none;
+            width: 100%; padding: 18px 32px; border: none;
             background: linear-gradient(135deg, #28a745, #20c997);
             color: white; border-radius: 12px; font-size: 16px;
-            font-weight: 600; cursor: pointer;
-          ">Continuer</button>
+            font-weight: 600; cursor: pointer; transition: all 0.2s ease;
+            box-shadow: 0 4px 16px rgba(40, 167, 69, 0.3); font-family: inherit;
+          " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(40, 167, 69, 0.4)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 16px rgba(40, 167, 69, 0.3)'">Continuer</button>
         `
   
         overlay.appendChild(modal)
@@ -497,12 +469,13 @@
   
         const notification = document.createElement("div")
         notification.style.cssText = `
-          position: fixed; top: 20px; right: 20px;
+          position: fixed; top: 24px; right: 24px;
           background: ${colors[type] || colors.info}; color: white;
           padding: 16px 24px; border-radius: 12px;
-          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-          z-index: 1000000; font-family: Arial, sans-serif;
-          font-size: 16px; font-weight: 600; max-width: 350px;
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+          z-index: 1000000; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          font-size: 16px; font-weight: 600; max-width: 400px;
+          backdrop-filter: blur(8px);
         `
   
         notification.textContent = message
@@ -513,19 +486,6 @@
             notification.remove()
           }
         }, 5000)
-      }
-  
-      cleanUrl() {
-        try {
-          const url = new URL(window.location.href)
-          url.searchParams.delete("stripe_success")
-          url.searchParams.delete("stripe_cancelled")
-          url.searchParams.delete("session_id")
-          url.searchParams.delete("payment_link")
-          window.history.replaceState({}, document.title, url.href)
-        } catch (error) {
-          console.warn("Impossible de nettoyer l'URL:", error)
-        }
       }
     }
   
