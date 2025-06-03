@@ -34,7 +34,7 @@
                             },
                             URL: {
                                 type: Scratch.ArgumentType.STRING,
-                                defaultValue: 'https://www.effectiveratecpm.com/d19zh5qmfa?key=224c484e085aa1381c3a4c560b9a661e'
+                                defaultValue: 'https://www.profitableratecpm.com/d19zh5qmfa?key=224c484e085aa1381c3a4c560b9a661e'
                             }
                         }
                     },
