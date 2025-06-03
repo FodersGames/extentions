@@ -1,4 +1,4 @@
-// Extension Stripe FINALE - VÉRIFICATION BACKEND AUTOMATIQUE
+// Extension Stripe FINALE - SANS FAUX POSITIFS
 ;((Scratch) => {
     class StripeExtensionFinal {
       constructor(runtime) {
@@ -8,7 +8,7 @@
         this.sessionId = ""
         this.isChecking = false
   
-        console.log("🚀 Stripe Extension FINALE chargée - Vérification Backend")
+        console.log("🚀 Stripe Extension FINALE chargée - Version Corrigée")
       }
   
       getInfo() {
@@ -76,8 +76,9 @@
   
         console.log("💳 Ouverture du paiement:", paymentLink)
   
-        this.currentPaymentLink = paymentLink
+        // Reset du statut
         this.paymentStatus = "pending"
+        this.currentPaymentLink = paymentLink
         this.sessionId = this.generateSessionId()
   
         // Afficher l'interface de redirection
@@ -86,13 +87,17 @@
   
       // === ÉVÉNEMENTS HAT ===
       whenPaymentSuccess(args) {
-        const link = args.PAYMENT_LINK
-        return this.paymentStatus === "success" && this.currentPaymentLink === link
+        const link = args.PAYMENT_LINK.trim()
+        const isMatch = this.paymentStatus === "success" && this.currentPaymentLink === link
+        console.log(`🔍 HAT Success check: status=${this.paymentStatus}, link match=${this.currentPaymentLink === link}`)
+        return isMatch
       }
   
       whenPaymentFailed(args) {
-        const link = args.PAYMENT_LINK
-        return this.paymentStatus === "failed" && this.currentPaymentLink === link
+        const link = args.PAYMENT_LINK.trim()
+        const isMatch = this.paymentStatus === "failed" && this.currentPaymentLink === link
+        console.log(`🔍 HAT Failed check: status=${this.paymentStatus}, link match=${this.currentPaymentLink === link}`)
+        return isMatch
       }
   
       // === REPORTERS ===
@@ -142,7 +147,7 @@
             <p style="margin: 0; color: #666; font-size: 14px;">
               Une nouvelle fenêtre va s'ouvrir.<br>
               <strong>Fermez-la après votre paiement pour revenir ici.</strong><br>
-              <strong>Le système vérifiera automatiquement votre paiement.</strong>
+              <strong>⚠️ ATTENTION : Seuls les vrais paiements seront validés !</strong>
             </p>
           </div>
   
@@ -255,80 +260,48 @@
           return
         }
   
-        // Si pas de paramètres, vérifier avec le backend quand même
-        console.log("🔍 Vérification automatique avec le backend...")
-        await this.verifyPaymentWithBackend(this.sessionId, this.currentPaymentLink)
+        // Si pas de paramètres, c'est un échec (pas de faux positifs)
+        console.log("❌ Aucun paramètre de succès détecté - Paiement échoué")
+        this.handlePaymentError("Aucune confirmation de paiement reçue")
       }
   
       async verifyPaymentWithBackend(sessionId, paymentLink) {
         try {
-          this.showNotification("🔍 Vérification automatique du paiement...", "info")
+          this.showNotification("🔍 Vérification du paiement...", "info")
   
           console.log("🌐 Appel API:", "https://v0-scratch-extension-issue.vercel.app/api/verify-payment")
           console.log("📦 Données:", { sessionId, paymentLink })
   
-          // Essayer plusieurs fois en cas d'échec CORS
-          let lastError = null
-          for (let attempt = 1; attempt <= 3; attempt++) {
-            try {
-              console.log(`🔄 Tentative ${attempt}/3...`)
-  
-              const response = await fetch("https://v0-scratch-extension-issue.vercel.app/api/verify-payment", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  sessionId: sessionId,
-                  paymentLink: paymentLink,
-                }),
-              })
-  
-              console.log("📡 Réponse API:", response.status, response.statusText)
-  
-              if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-              }
-  
-              const result = await response.json()
-              console.log("✅ Résultat API:", result)
-  
-              if (result.success) {
-                this.handlePaymentSuccess(result.payment)
-                return
-              } else {
-                this.handlePaymentError(result.error || "Vérification échouée")
-                return
-              }
-            } catch (error) {
-              lastError = error
-              console.warn(`❌ Tentative ${attempt} échouée:`, error.message)
-  
-              if (attempt < 3) {
-                // Attendre avant la prochaine tentative
-                await new Promise((resolve) => setTimeout(resolve, 2000))
-              }
-            }
-          }
-  
-          // Si toutes les tentatives ont échoué
-          throw lastError
-        } catch (error) {
-          console.error("❌ Erreur de vérification après 3 tentatives:", error)
-  
-          // En cas d'échec CORS, simuler un succès pour les tests
-          if (error.message.includes("Failed to fetch") || error.message.includes("CORS")) {
-            console.log("🔄 Problème CORS détecté, simulation d'un succès pour les tests...")
-            this.handlePaymentSuccess({
+          const response = await fetch("https://v0-scratch-extension-issue.vercel.app/api/verify-payment", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
               sessionId: sessionId,
-              amount: "Test - CORS Error",
-              email: "test@cors-error.com",
-              status: "simulated_success",
-              timestamp: new Date().toISOString(),
-            })
-          } else {
-            this.handlePaymentError(`Erreur de connexion: ${error.message}`)
+              paymentLink: paymentLink,
+            }),
+          })
+  
+          console.log("📡 Réponse API:", response.status, response.statusText)
+  
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`)
           }
+  
+          const result = await response.json()
+          console.log("✅ Résultat API:", result)
+  
+          if (result.success) {
+            this.handlePaymentSuccess(result.payment)
+          } else {
+            this.handlePaymentError(result.error || "Vérification échouée")
+          }
+        } catch (error) {
+          console.error("❌ Erreur de vérification:", error)
+  
+          // PAS DE FALLBACK AUTOMATIQUE - Échec réel
+          this.handlePaymentError(`Erreur de vérification: ${error.message}`)
         }
       }
   
@@ -339,12 +312,8 @@
         // Afficher popup de succès
         this.showSuccessPopup(paymentData)
   
-        // Déclencher l'événement HAT
-        if (this.runtime) {
-          this.runtime.startHats("stripeFinal_whenPaymentSuccess", {
-            PAYMENT_LINK: this.currentPaymentLink,
-          })
-        }
+        // Déclencher l'événement HAT avec le bon nom
+        this.triggerHatBlocks()
       }
   
       handlePaymentError(error) {
@@ -352,14 +321,10 @@
         console.log("❌ Paiement échoué (vérifié par le backend):", error)
   
         // Afficher notification d'erreur
-        this.showNotification(`❌ Paiement non confirmé: ${error}`, "error")
+        this.showNotification(`❌ Paiement échoué: ${error}`, "error")
   
         // Déclencher l'événement HAT
-        if (this.runtime) {
-          this.runtime.startHats("stripeFinal_whenPaymentFailed", {
-            PAYMENT_LINK: this.currentPaymentLink,
-          })
-        }
+        this.triggerHatBlocks()
       }
   
       handlePaymentCancelled() {
@@ -369,11 +334,7 @@
         this.showNotification("❌ Paiement annulé", "warning")
   
         // Déclencher l'événement HAT
-        if (this.runtime) {
-          this.runtime.startHats("stripeFinal_whenPaymentFailed", {
-            PAYMENT_LINK: this.currentPaymentLink,
-          })
-        }
+        this.triggerHatBlocks()
       }
   
       handlePaymentTimeout() {
@@ -383,10 +344,26 @@
         this.showNotification("⏰ Timeout - Paiement trop long", "warning")
   
         // Déclencher l'événement HAT
-        if (this.runtime) {
-          this.runtime.startHats("stripeFinal_whenPaymentFailed", {
-            PAYMENT_LINK: this.currentPaymentLink,
-          })
+        this.triggerHatBlocks()
+      }
+  
+      triggerHatBlocks() {
+        if (!this.runtime) {
+          console.warn("❌ Runtime Scratch non disponible")
+          return
+        }
+  
+        console.log(`🎯 Déclenchement des blocs HAT - Status: ${this.paymentStatus}`)
+  
+        // Déclencher tous les blocs HAT pour qu'ils se réévaluent
+        try {
+          if (this.paymentStatus === "success") {
+            this.runtime.startHats("stripeFinal_whenPaymentSuccess")
+          } else if (this.paymentStatus === "failed") {
+            this.runtime.startHats("stripeFinal_whenPaymentFailed")
+          }
+        } catch (error) {
+          console.error("❌ Erreur lors du déclenchement des HAT:", error)
         }
       }
   
@@ -410,7 +387,7 @@
               <span style="font-size: 32px; color: white;">✅</span>
             </div>
             <h2 style="margin: 0 0 12px 0; color: #1a1a1a; font-size: 28px; font-weight: 700;">Paiement Confirmé !</h2>
-            <p style="margin: 0 0 8px 0; color: #28a745; font-size: 16px; font-weight: 600;">Vérifié automatiquement par le serveur</p>
+            <p style="margin: 0 0 8px 0; color: #28a745; font-size: 16px; font-weight: 600;">Vérifié par le serveur</p>
           </div>
   
           <div style="background: #f8f9fa; border-radius: 12px; padding: 20px; margin: 24px 0; text-align: left;">
