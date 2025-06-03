@@ -11,11 +11,11 @@
             this._adErrors = {};
             this._adTimers = {};
             this._currentAdId = null;
-            this._debugMode = true; // Debug mode enabled by default
+            this._debugMode = true;
             
-            // New: Event tracking to prevent multiple triggers
-            this._eventsFired = {};
-            this._eventLock = false;
+            // Simplified event tracking - only prevent rapid duplicate events
+            this._lastEventTime = {};
+            this._eventCooldown = 1000; // 1 second cooldown between same events
         }
 
         getInfo() {
@@ -156,7 +156,6 @@
                 console.log(`%c${logMessage}`, `color: ${type === 'error' ? 'red' : type === 'warn' ? 'orange' : 'blue'}`);
             }
 
-            // Store error if it's an error
             if (type === 'error') {
                 if (!this._adErrors[adId]) {
                     this._adErrors[adId] = [];
@@ -172,23 +171,17 @@
             
             this._log(adId, `Starting ad load - Duration: ${duration}s, URL: ${baseUrl}`);
             
-            // Reset states for this ad
+            // Reset states for this ad - IMPORTANT: Clear previous states
             this._adSuccess[adId] = false;
             this._adFailed[adId] = false;
             this._adErrors[adId] = [];
             this._currentAdId = adId;
-            
-            // NEW: Reset event tracking for this ad ID
-            this._eventsFired[`success_${adId}`] = false;
-            this._eventsFired[`fail_${adId}`] = false;
 
-            // Close any current ad
             this.closeAd();
 
             try {
                 this._log(adId, 'Creating overlay...');
                 
-                // Create main overlay
                 this._overlay = document.createElement('div');
                 this._overlay.id = 'adOverlay';
                 this._overlay.style.cssText = `
@@ -205,7 +198,6 @@
                     justify-content: center;
                 `;
 
-                // Create iframe for the ad
                 this._iframe = document.createElement('iframe');
                 this._iframe.style.cssText = `
                     width: 90vw;
@@ -218,14 +210,12 @@
                     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
                 `;
                 
-                // Build URL with ID
                 const adUrl = baseUrl.includes('?') 
                     ? `${baseUrl}&id=${adId}` 
                     : `${baseUrl}?id=${adId}`;
                 
                 this._log(adId, `Final URL: ${adUrl}`);
 
-                // Create professional timer display
                 const counterDiv = document.createElement('div');
                 counterDiv.id = 'adCounter';
                 counterDiv.style.cssText = `
@@ -245,7 +235,6 @@
                     text-align: center;
                 `;
 
-                // Create debug area
                 const debugDiv = document.createElement('div');
                 debugDiv.id = 'debugInfo';
                 debugDiv.style.cssText = `
@@ -264,7 +253,6 @@
                     display: ${this._debugMode ? 'block' : 'none'};
                 `;
 
-                // Add elements to overlay
                 this._overlay.appendChild(this._iframe);
                 this._overlay.appendChild(counterDiv);
                 this._overlay.appendChild(debugDiv);
@@ -272,7 +260,6 @@
 
                 this._log(adId, 'Overlay created and added to DOM');
 
-                // Handle iframe events
                 this._iframe.onload = () => {
                     this._log(adId, 'Iframe loaded successfully');
                     debugDiv.innerHTML += '<br>✅ Iframe loaded';
@@ -284,7 +271,6 @@
                     this._finishAd(adId, false, 'Iframe loading error');
                 };
 
-                // Set source after configuring events
                 this._iframe.src = adUrl;
                 this._log(adId, 'Iframe source set');
 
@@ -302,7 +288,6 @@
 
                 updateDisplay();
 
-                // Start timer
                 this._counter = setInterval(() => {
                     remainingTime--;
                     debugMessages.push(`T-${remainingTime}s`);
@@ -312,7 +297,6 @@
                     if (remainingTime > 0) {
                         updateDisplay();
 
-                        // Check if iframe is still accessible
                         try {
                             if (this._iframe && this._iframe.contentWindow) {
                                 debugMessages.push(`Frame OK`);
@@ -323,17 +307,14 @@
                         }
                         
                     } else {
-                        // Time elapsed - ad finished successfully
                         this._log(adId, 'Ad finished successfully (time elapsed)');
                         this._finishAd(adId, true, 'Time elapsed normally');
                     }
                 }, 1000);
 
-                // Connectivity check after 3 seconds
                 setTimeout(() => {
                     if (this._iframe && this._iframe.src) {
                         try {
-                            // Connectivity test
                             const testImg = new Image();
                             testImg.onload = () => {
                                 this._log(adId, 'Connectivity test successful');
@@ -350,14 +331,6 @@
                     }
                 }, 3000);
 
-                // Safety timeout
-                setTimeout(() => {
-                    if (this._currentAdId === adId && this._iframe) {
-                        this._log(adId, 'Safety timeout reached', 'warn');
-                        // Don't close automatically, just log
-                    }
-                }, 10000);
-
             } catch (error) {
                 this._log(adId, `Critical error: ${error.message}`, 'error');
                 this._finishAd(adId, false, `Critical error: ${error.message}`);
@@ -365,14 +338,16 @@
         }
 
         _finishAd(adId, success, reason = '') {
-            // Prevent multiple calls to _finishAd for the same ad with the same outcome
-            const eventKey = success ? `success_${adId}` : `fail_${adId}`;
+            // Check for rapid duplicate events (cooldown mechanism)
+            const eventKey = `${success ? 'success' : 'fail'}_${adId}`;
+            const now = Date.now();
             
-            if (this._eventsFired[eventKey]) {
-                this._log(adId, `Event already fired for ${eventKey}, ignoring duplicate`, 'warn');
+            if (this._lastEventTime[eventKey] && (now - this._lastEventTime[eventKey]) < this._eventCooldown) {
+                this._log(adId, `Event cooldown active for ${eventKey}, ignoring duplicate`, 'warn');
                 return;
             }
             
+            this._lastEventTime[eventKey] = now;
             this._log(adId, `Ad finished - Success: ${success}, Reason: ${reason}`);
             
             // Clean up timers
@@ -381,7 +356,6 @@
                 this._counter = null;
             }
 
-            // Close overlay
             this.closeAd();
 
             // Update states
@@ -397,33 +371,16 @@
             }
 
             this._currentAdId = null;
-            
-            // Mark this event as fired
-            this._eventsFired[eventKey] = true;
 
-            // Prevent event flooding with a lock
-            if (this._eventLock) {
-                this._log(adId, 'Event lock active, delaying event trigger', 'warn');
-                return;
-            }
-            
-            this._eventLock = true;
-
-            // Trigger events after a short delay
+            // Trigger events immediately - no complex locking mechanism
             setTimeout(() => {
                 if (success) {
-                    this._log(adId, 'Triggering success event (ONCE ONLY)');
+                    this._log(adId, 'Triggering success event');
                     Scratch.vm.runtime.startHats('adRewards_onAdFinished', { AD_ID: adId });
                 } else {
-                    this._log(adId, 'Triggering failure event (ONCE ONLY)');
+                    this._log(adId, 'Triggering failure event');
                     Scratch.vm.runtime.startHats('adRewards_onAdFailed', { AD_ID: adId });
                 }
-                
-                // Release the event lock after a safe period
-                setTimeout(() => {
-                    this._eventLock = false;
-                }, 500);
-                
             }, 100);
         }
 
@@ -441,16 +398,13 @@
             this._iframe = null;
         }
 
+        // FIXED: Simplified HAT block logic - no permanent "processed" flags
         onAdFinished(args) {
             const adId = String(args.AD_ID);
-            // This is the HAT block condition - it should only return true ONCE
-            // when the ad finishes successfully
-            const result = this._adSuccess[adId] === true && !this._eventsFired[`success_${adId}_processed`];
+            const result = this._adSuccess[adId] === true;
             
             if (result) {
-                // Mark as processed so it doesn't trigger again
-                this._eventsFired[`success_${adId}_processed`] = true;
-                this._log(adId, 'HAT block onAdFinished triggered ONCE', 'info');
+                this._log(adId, 'HAT block onAdFinished triggered', 'info');
             }
             
             return result;
@@ -458,14 +412,10 @@
 
         onAdFailed(args) {
             const adId = String(args.AD_ID);
-            // This is the HAT block condition - it should only return true ONCE
-            // when the ad fails
-            const result = this._adFailed[adId] === true && !this._eventsFired[`fail_${adId}_processed`];
+            const result = this._adFailed[adId] === true;
             
             if (result) {
-                // Mark as processed so it doesn't trigger again
-                this._eventsFired[`fail_${adId}_processed`] = true;
-                this._log(adId, 'HAT block onAdFailed triggered ONCE', 'info');
+                this._log(adId, 'HAT block onAdFailed triggered', 'info');
             }
             
             return result;
@@ -485,10 +435,9 @@
             const adId = String(args.AD_ID);
             this._adSuccess[adId] = false;
             this._adFailed[adId] = false;
-            this._eventsFired[`success_${adId}`] = false;
-            this._eventsFired[`fail_${adId}`] = false;
-            this._eventsFired[`success_${adId}_processed`] = false;
-            this._eventsFired[`fail_${adId}_processed`] = false;
+            // Clear cooldown timers for this ad
+            delete this._lastEventTime[`success_${adId}`];
+            delete this._lastEventTime[`fail_${adId}`];
             this._log(adId, 'Ad status reset', 'info');
         }
 
@@ -516,7 +465,6 @@
         }
     }
 
-    // Register the extension
     Scratch.extensions.register(new AdRewards());
 
 })(window.Scratch);
