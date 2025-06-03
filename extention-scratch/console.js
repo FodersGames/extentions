@@ -130,7 +130,7 @@
                 position: fixed;
                 top: 50px;
                 right: 20px;
-                width: 600px;
+                width: 650px;
                 height: 500px;
                 background: linear-gradient(135deg, #2C3E50 0%, #34495E 100%);
                 border: 2px solid #3498DB;
@@ -320,7 +320,7 @@
             });
         }
 
-        _addLog(type, message, details = null) {
+        _addLog(type, message, details = null, isExpandable = false) {
             const timestamp = new Date();
             const log = {
                 id: ++this.logId,
@@ -329,7 +329,9 @@
                 details: details,
                 timestamp: timestamp,
                 time: timestamp.toLocaleTimeString(),
-                depth: this.executionDepth
+                depth: this.executionDepth,
+                isExpandable: isExpandable,
+                isExpanded: false
             };
 
             this.logs.push(log);
@@ -356,6 +358,7 @@
 
             const logElement = document.createElement('div');
             logElement.className = `log-entry log-${log.type}`;
+            logElement.dataset.logId = log.id;
             
             // Add indentation based on execution depth
             const indentPx = log.depth * 20;
@@ -363,61 +366,143 @@
             logElement.style.cssText = `
                 margin-bottom: 4px;
                 margin-left: ${indentPx}px;
-                padding: 8px 12px;
                 border-radius: 6px;
                 border-left: 4px solid ${this._getLogColor(log.type)};
                 background: ${this._getLogBackground(log.type)};
                 font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
                 transition: all 0.2s ease;
-                cursor: pointer;
+                cursor: ${log.isExpandable ? 'pointer' : 'default'};
+                overflow: hidden;
             `;
 
             const icon = this._getLogIcon(log.type);
             const typeText = log.type.toUpperCase();
+            const expandIcon = log.isExpandable ? '▶️' : '';
 
             logElement.innerHTML = `
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
+                <div class="log-header" style="padding: 8px 12px; display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
                     <div style="flex: 1;">
                         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                            ${log.isExpandable ? `<span class="expand-icon" style="font-size: 12px; transition: transform 0.2s;">${expandIcon}</span>` : ''}
                             <span style="font-size: 14px;">${icon}</span>
                             <span style="color: ${this._getLogColor(log.type)}; font-weight: bold; font-size: 11px;">${typeText}</span>
                             <span style="color: #7F8C8D; font-size: 10px;">#${log.id}</span>
                             ${log.depth > 0 ? `<span style="color: #95A5A6; font-size: 10px;">depth:${log.depth}</span>` : ''}
+                            ${log.isExpandable ? `<span style="color: #F39C12; font-size: 10px;">📋 Click to expand</span>` : ''}
                         </div>
                         <div style="color: #ECF0F1; font-size: 13px; word-break: break-word;">
                             ${this._escapeHtml(log.message)}
                         </div>
-                        ${log.details ? `
-                            <div style="margin-top: 6px; padding: 6px; background: rgba(0,0,0,0.2); border-radius: 4px; font-size: 11px; color: #BDC3C7;">
-                                <strong>Details:</strong><br>
-                                <pre style="margin: 4px 0 0 0; white-space: pre-wrap; font-family: inherit;">${this._escapeHtml(JSON.stringify(log.details, null, 2))}</pre>
-                            </div>
-                        ` : ''}
                     </div>
                     <div style="color: #7F8C8D; font-size: 10px; white-space: nowrap;">
                         ${log.time}
                     </div>
                 </div>
+                ${log.isExpandable && log.details ? `
+                    <div class="log-details" style="display: none; padding: 0 12px 12px 12px; border-top: 1px solid rgba(255,255,255,0.1); margin-top: 8px;">
+                        <div style="background: rgba(0,0,0,0.3); border-radius: 6px; padding: 12px; margin-top: 8px;">
+                            <div style="color: #F39C12; font-weight: bold; margin-bottom: 8px; font-size: 12px;">📋 Detailed Block Analysis:</div>
+                            ${this._formatBlockDetails(log.details)}
+                        </div>
+                    </div>
+                ` : ''}
             `;
 
-            // Add hover effect
-            logElement.addEventListener('mouseenter', () => {
-                logElement.style.background = this._getLogHoverBackground(log.type);
-                logElement.style.transform = 'translateX(2px)';
-            });
+            // Add click handler for expandable logs
+            if (log.isExpandable) {
+                const header = logElement.querySelector('.log-header');
+                const details = logElement.querySelector('.log-details');
+                const expandIcon = logElement.querySelector('.expand-icon');
 
-            logElement.addEventListener('mouseleave', () => {
-                logElement.style.background = this._getLogBackground(log.type);
-                logElement.style.transform = 'translateX(0)';
-            });
+                header.addEventListener('click', () => {
+                    log.isExpanded = !log.isExpanded;
+                    
+                    if (log.isExpanded) {
+                        details.style.display = 'block';
+                        expandIcon.style.transform = 'rotate(90deg)';
+                        logElement.style.background = this._getLogHoverBackground(log.type);
+                    } else {
+                        details.style.display = 'none';
+                        expandIcon.style.transform = 'rotate(0deg)';
+                        logElement.style.background = this._getLogBackground(log.type);
+                    }
+                });
 
-            // Add click to copy
-            logElement.addEventListener('click', () => {
-                navigator.clipboard.writeText(`[${log.time}] ${typeText}: ${log.message}`);
-                this._showToast('Log copied to clipboard!');
-            });
+                // Add hover effect
+                header.addEventListener('mouseenter', () => {
+                    if (!log.isExpanded) {
+                        logElement.style.background = this._getLogHoverBackground(log.type);
+                    }
+                });
+
+                header.addEventListener('mouseleave', () => {
+                    if (!log.isExpanded) {
+                        logElement.style.background = this._getLogBackground(log.type);
+                    }
+                });
+            } else {
+                // Regular click to copy for non-expandable logs
+                logElement.addEventListener('click', () => {
+                    navigator.clipboard.writeText(`[${log.time}] ${typeText}: ${log.message}`);
+                    this._showToast('Log copied to clipboard!');
+                });
+            }
 
             container.appendChild(logElement);
+        }
+
+        _formatBlockDetails(details) {
+            if (!details.blocks || details.blocks.length === 0) {
+                return '<div style="color: #E74C3C;">No blocks found</div>';
+            }
+
+            let html = `
+                <div style="margin-bottom: 12px;">
+                    <span style="color: #3498DB;">📊 Total Blocks:</span> <span style="color: #ECF0F1;">${details.blocks.length}</span><br>
+                    <span style="color: #3498DB;">🎯 Target:</span> <span style="color: #ECF0F1;">${details.target}</span><br>
+                    <span style="color: #3498DB;">🎭 Sprite:</span> <span style="color: #ECF0F1;">${details.sprite}</span><br>
+                    <span style="color: #3498DB;">⏰ Execution Time:</span> <span style="color: #ECF0F1;">${details.executionTime}</span>
+                </div>
+                <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px;">
+                    <div style="color: #F39C12; font-weight: bold; margin-bottom: 8px;">🔍 Block Details:</div>
+            `;
+
+            details.blocks.forEach((block, index) => {
+                html += `
+                    <div style="background: rgba(0,0,0,0.2); border-radius: 4px; padding: 8px; margin-bottom: 6px; border-left: 3px solid #3498DB;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                            <span style="color: #3498DB; font-weight: bold;">Block ${index + 1}</span>
+                            <span style="color: #95A5A6; font-size: 10px;">${block.opcode}</span>
+                        </div>
+                        <div style="font-size: 11px; color: #BDC3C7;">
+                            <strong>Opcode:</strong> <code style="background: rgba(0,0,0,0.3); padding: 2px 4px; border-radius: 2px;">${block.opcode}</code>
+                        </div>
+                        ${Object.keys(block.inputs).length > 0 ? `
+                            <div style="font-size: 11px; color: #BDC3C7; margin-top: 4px;">
+                                <strong>Inputs:</strong>
+                                <div style="margin-left: 12px; margin-top: 2px;">
+                                    ${Object.entries(block.inputs).map(([key, value]) => 
+                                        `<div>• <span style="color: #F39C12;">${key}:</span> <span style="color: #ECF0F1;">${value.value}</span> <span style="color: #95A5A6;">(${value.type})</span></div>`
+                                    ).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+                        ${Object.keys(block.fields).length > 0 ? `
+                            <div style="font-size: 11px; color: #BDC3C7; margin-top: 4px;">
+                                <strong>Fields:</strong>
+                                <div style="margin-left: 12px; margin-top: 2px;">
+                                    ${Object.entries(block.fields).map(([key, value]) => 
+                                        `<div>• <span style="color: #E67E22;">${key}:</span> <span style="color: #ECF0F1;">${value}</span></div>`
+                                    ).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            });
+
+            html += '</div>';
+            return html;
         }
 
         _getLogColor(type) {
@@ -629,51 +714,46 @@
         }
 
         executeAndLog(args, util) {
-            this.executionDepth++;
-            
-            // Log start of execution block
-            this._addLog('info', `🚀 Starting execution block (depth: ${this.executionDepth})`);
+            const startTime = Date.now();
             
             // Analyze the blocks in the substack
             const analyzedBlocks = this._analyzeSubstackBlocks(util, 'SUBSTACK');
+            const endTime = Date.now();
+            const executionTime = `${endTime - startTime}ms`;
             
-            if (analyzedBlocks.length > 0) {
-                this._addLog('debug', `Found ${analyzedBlocks.length} blocks to execute:`, {
-                    blocks: analyzedBlocks.map(block => ({
-                        opcode: block.opcode,
-                        inputs: block.inputs,
-                        fields: block.fields
-                    }))
-                });
-
-                // Log each block individually
-                analyzedBlocks.forEach((block, index) => {
-                    const message = `Block ${index + 1}: ${block.opcode}`;
-                    const details = {
-                        blockId: block.id,
-                        target: block.target,
-                        sprite: block.sprite,
-                        inputs: block.inputs,
-                        fields: block.fields,
-                        position: index + 1,
-                        totalBlocks: analyzedBlocks.length
-                    };
-                    
-                    this._addLog('debug', message, details);
-                });
+            // Create summary message
+            const blockTypes = analyzedBlocks.map(block => block.opcode);
+            const uniqueTypes = [...new Set(blockTypes)];
+            
+            let summaryMessage = '';
+            if (analyzedBlocks.length === 0) {
+                summaryMessage = '📦 Executed empty block group';
+            } else if (analyzedBlocks.length === 1) {
+                summaryMessage = `📦 Executed 1 block: ${analyzedBlocks[0].opcode}`;
             } else {
-                this._addLog('warning', 'No blocks found in execution block');
+                summaryMessage = `📦 Executed ${analyzedBlocks.length} blocks (${uniqueTypes.length} types): ${uniqueTypes.slice(0, 3).join(', ')}${uniqueTypes.length > 3 ? '...' : ''}`;
             }
+
+            // Create detailed information
+            const detailedInfo = {
+                blocks: analyzedBlocks,
+                target: util.target.getName(),
+                sprite: util.target.sprite.name,
+                executionTime: executionTime,
+                summary: {
+                    totalBlocks: analyzedBlocks.length,
+                    uniqueTypes: uniqueTypes.length,
+                    blockTypes: uniqueTypes
+                }
+            };
+
+            // Add the log with expandable details
+            this._addLog('info', summaryMessage, detailedInfo, true);
 
             // Execute the substack
             if (util.startBranch) {
                 util.startBranch(1, false);
             }
-
-            this.executionDepth--;
-            
-            // Log end of execution block
-            this._addLog('info', `✅ Execution block completed (depth: ${this.executionDepth + 1})`);
         }
 
         openConsole() {
@@ -712,7 +792,8 @@
                 message: log.message,
                 details: log.details,
                 timestamp: log.timestamp.toISOString(),
-                depth: log.depth
+                depth: log.depth,
+                isExpandable: log.isExpandable
             }));
 
             const dataStr = JSON.stringify(logData, null, 2);
