@@ -1,4 +1,4 @@
-// Extension Stripe FINALE - SANS FAUX POSITIFS
+// Extension Stripe FINALE - Correction Payment Links 0€
 ;((Scratch) => {
     class StripeExtensionFinal {
       constructor(runtime) {
@@ -8,7 +8,7 @@
         this.sessionId = ""
         this.isChecking = false
   
-        console.log("🚀 Stripe Extension FINALE chargée - Version Corrigée")
+        console.log("🚀 Stripe Extension FINALE chargée - Version Debug")
       }
   
       getInfo() {
@@ -81,22 +81,51 @@
         this.currentPaymentLink = paymentLink
         this.sessionId = this.generateSessionId()
   
+        console.log("📝 État après ouverture:")
+        console.log("  Status:", this.paymentStatus)
+        console.log("  Link:", this.currentPaymentLink)
+        console.log("  Session:", this.sessionId)
+  
+        // Vérifier si c'est un Payment Link à 0€
+        this.checkZeroAmountWarning()
+  
         // Afficher l'interface de redirection
         this.showRedirectInterface(paymentLink)
+      }
+  
+      checkZeroAmountWarning() {
+        // Afficher un avertissement pour les montants à 0€
+        this.showNotification("⚠️ Si votre Payment Link est à 0€, il ne fonctionnera pas correctement !", "warning")
       }
   
       // === ÉVÉNEMENTS HAT ===
       whenPaymentSuccess(args) {
         const link = args.PAYMENT_LINK.trim()
-        const isMatch = this.paymentStatus === "success" && this.currentPaymentLink === link
-        console.log(`🔍 HAT Success check: status=${this.paymentStatus}, link match=${this.currentPaymentLink === link}`)
+        const currentLink = this.currentPaymentLink.trim()
+        const isMatch = this.paymentStatus === "success" && currentLink === link
+  
+        console.log(`🔍 HAT Success check:`)
+        console.log(`  Status: ${this.paymentStatus} (need: success)`)
+        console.log(`  Current link: "${currentLink}"`)
+        console.log(`  Checking link: "${link}"`)
+        console.log(`  Link match: ${currentLink === link}`)
+        console.log(`  Final result: ${isMatch}`)
+  
         return isMatch
       }
   
       whenPaymentFailed(args) {
         const link = args.PAYMENT_LINK.trim()
-        const isMatch = this.paymentStatus === "failed" && this.currentPaymentLink === link
-        console.log(`🔍 HAT Failed check: status=${this.paymentStatus}, link match=${this.currentPaymentLink === link}`)
+        const currentLink = this.currentPaymentLink.trim()
+        const isMatch = this.paymentStatus === "failed" && currentLink === link
+  
+        console.log(`🔍 HAT Failed check:`)
+        console.log(`  Status: ${this.paymentStatus} (need: failed)`)
+        console.log(`  Current link: "${currentLink}"`)
+        console.log(`  Checking link: "${link}"`)
+        console.log(`  Link match: ${currentLink === link}`)
+        console.log(`  Final result: ${isMatch}`)
+  
         return isMatch
       }
   
@@ -139,6 +168,17 @@
             <p style="margin: 0; color: #999; font-size: 14px;">Session ID: ${this.sessionId}</p>
           </div>
   
+          <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 12px; padding: 20px; margin: 24px 0;">
+            <div style="display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 12px;">
+              <span style="font-size: 20px;">⚠️</span>
+              <span style="color: #856404; font-weight: 700; font-size: 16px;">IMPORTANT</span>
+            </div>
+            <p style="margin: 0; color: #856404; font-size: 14px;">
+              <strong>Les Payment Links à 0€ ne fonctionnent pas !</strong><br>
+              Utilisez un montant > 0€ (ex: 1€) pour tester.
+            </p>
+          </div>
+  
           <div style="background: #f8f9fa; border-radius: 12px; padding: 20px; margin: 24px 0;">
             <div style="display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 12px;">
               <span style="font-size: 20px;">🔒</span>
@@ -146,8 +186,7 @@
             </div>
             <p style="margin: 0; color: #666; font-size: 14px;">
               Une nouvelle fenêtre va s'ouvrir.<br>
-              <strong>Fermez-la après votre paiement pour revenir ici.</strong><br>
-              <strong>⚠️ ATTENTION : Seuls les vrais paiements seront validés !</strong>
+              <strong>Fermez-la après votre paiement pour revenir ici.</strong>
             </p>
           </div>
   
@@ -200,6 +239,8 @@
         const separator = paymentLink.includes("?") ? "&" : "?"
         const fullUrl = `${paymentLink}${separator}success_url=${encodeURIComponent(successUrl)}&cancel_url=${encodeURIComponent(cancelUrl)}&client_reference_id=${this.sessionId}`
   
+        console.log("🌐 URL complète Stripe:", fullUrl)
+  
         // Ouvrir Stripe
         const stripeWindow = window.open(fullUrl, "stripe_payment", "width=800,height=700,scrollbars=yes,resizable=yes")
   
@@ -216,6 +257,8 @@
       }
   
       monitorStripeWindow(stripeWindow) {
+        console.log("👀 Surveillance de la fenêtre Stripe...")
+  
         const checkClosed = setInterval(() => {
           if (stripeWindow.closed) {
             clearInterval(checkClosed)
@@ -239,12 +282,20 @@
       }
   
       async checkPaymentResult() {
+        console.log("🔍 Vérification du résultat du paiement...")
+  
         // Vérifier les paramètres d'URL d'abord
         const urlParams = new URLSearchParams(window.location.search)
         const stripeSuccess = urlParams.get("stripe_success")
         const stripeCancelled = urlParams.get("stripe_cancelled")
         const sessionId = urlParams.get("session_id")
         const paymentLink = urlParams.get("payment_link")
+  
+        console.log("📋 Paramètres URL détectés:")
+        console.log("  stripe_success:", stripeSuccess)
+        console.log("  stripe_cancelled:", stripeCancelled)
+        console.log("  session_id:", sessionId)
+        console.log("  payment_link:", paymentLink)
   
         if (stripeSuccess === "true" && sessionId) {
           console.log("✅ Succès détecté dans l'URL")
@@ -262,7 +313,7 @@
   
         // Si pas de paramètres, c'est un échec (pas de faux positifs)
         console.log("❌ Aucun paramètre de succès détecté - Paiement échoué")
-        this.handlePaymentError("Aucune confirmation de paiement reçue")
+        this.handlePaymentError("Aucune confirmation de paiement reçue (vérifiez que votre Payment Link n'est pas à 0€)")
       }
   
       async verifyPaymentWithBackend(sessionId, paymentLink) {
@@ -308,6 +359,7 @@
       handlePaymentSuccess(paymentData) {
         this.paymentStatus = "success"
         console.log("🎉 Paiement vérifié et confirmé par le backend!")
+        console.log("📝 Nouveau statut:", this.paymentStatus)
   
         // Afficher popup de succès
         this.showSuccessPopup(paymentData)
@@ -318,7 +370,8 @@
   
       handlePaymentError(error) {
         this.paymentStatus = "failed"
-        console.log("❌ Paiement échoué (vérifié par le backend):", error)
+        console.log("❌ Paiement échoué:", error)
+        console.log("📝 Nouveau statut:", this.paymentStatus)
   
         // Afficher notification d'erreur
         this.showNotification(`❌ Paiement échoué: ${error}`, "error")
@@ -330,6 +383,7 @@
       handlePaymentCancelled() {
         this.paymentStatus = "failed"
         console.log("❌ Paiement annulé")
+        console.log("📝 Nouveau statut:", this.paymentStatus)
   
         this.showNotification("❌ Paiement annulé", "warning")
   
@@ -340,6 +394,7 @@
       handlePaymentTimeout() {
         this.paymentStatus = "failed"
         console.log("⏰ Timeout du paiement")
+        console.log("📝 Nouveau statut:", this.paymentStatus)
   
         this.showNotification("⏰ Timeout - Paiement trop long", "warning")
   
@@ -358,8 +413,10 @@
         // Déclencher tous les blocs HAT pour qu'ils se réévaluent
         try {
           if (this.paymentStatus === "success") {
+            console.log("🚀 Déclenchement HAT Success...")
             this.runtime.startHats("stripeFinal_whenPaymentSuccess")
           } else if (this.paymentStatus === "failed") {
+            console.log("🚀 Déclenchement HAT Failed...")
             this.runtime.startHats("stripeFinal_whenPaymentFailed")
           }
         } catch (error) {
