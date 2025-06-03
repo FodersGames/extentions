@@ -1,7 +1,7 @@
 ;((Scratch) => {
     class SecureStripePurchaseExtension {
       constructor() {
-        this.serverURL = "https://VOTRE-VRAIE-URL-VERCEL.vercel.app/api" // ⚠️ REMPLACEZ PAR VOTRE VRAIE URL VERCEL
+        this.serverURL = "https://v0-scratch-extension-issue.vercel.app/api" // ✅ URL CORRECTE
         this.purchasedItems = new Set()
         this.userId = this._generateUserId()
         this.checkIntervals = new Map()
@@ -87,10 +87,17 @@
         try {
           this._showNotification("🔧 Testing server connection...", "info")
   
-          const response = await fetch(`${this.serverURL}/check-purchase?userId=test`)
+          const response = await fetch(`${this.serverURL}/check-purchase?userId=test`, {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          })
   
           if (response.ok) {
+            const data = await response.json()
             this._showNotification("✅ Server connection successful!", "success")
+            console.log("Server response:", data)
           } else {
             this._showNotification(`❌ Server error: ${response.status}`, "error")
           }
@@ -102,7 +109,12 @@
   
       async _loadPurchasesFromServer() {
         try {
-          const response = await fetch(`${this.serverURL}/check-purchase?userId=${this.userId}`)
+          const response = await fetch(`${this.serverURL}/check-purchase?userId=${this.userId}`, {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          })
           if (response.ok) {
             const { purchases } = await response.json()
             this.purchasedItems = new Set(purchases)
