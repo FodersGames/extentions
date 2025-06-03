@@ -2,7 +2,7 @@
     class SecureStripePurchaseExtension {
       constructor() {
         this.serverURL = "https://v0-scratch-extension-issue.vercel.app/api"
-        this.purchasedItems = new Set()
+        this.purchasedItems = new Map() // ✅ Changé en Map pour compter les achats
         this.userId = this._generateUserId()
         this.checkIntervals = new Map()
   
@@ -32,6 +32,17 @@
               opcode: "hasPurchasedLink",
               blockType: Scratch.BlockType.BOOLEAN,
               text: "Has purchased [PAYMENT_LINK]?",
+              arguments: {
+                PAYMENT_LINK: {
+                  type: Scratch.ArgumentType.STRING,
+                  defaultValue: "https://buy.stripe.com/test_...",
+                },
+              },
+            },
+            {
+              opcode: "getPurchaseCount",
+              blockType: Scratch.BlockType.REPORTER,
+              text: "Purchase count for [PAYMENT_LINK]",
               arguments: {
                 PAYMENT_LINK: {
                   type: Scratch.ArgumentType.STRING,
@@ -113,6 +124,25 @@
         return match ? match[2] : paymentLink
       }
   
+      // ✅ NOUVELLE FONCTION POUR AJOUTER UN ACHAT (permet les multiples)
+      _addPurchase(productId) {
+        if (this.purchasedItems.has(productId)) {
+          this.purchasedItems.set(productId, this.purchasedItems.get(productId) + 1)
+        } else {
+          this.purchasedItems.set(productId, 1)
+        }
+      }
+  
+      // ✅ FONCTION POUR OBTENIR LE NOMBRE D'ACHATS
+      getPurchaseCount(args) {
+        const paymentLink = args.PAYMENT_LINK.trim()
+        if (!paymentLink || !paymentLink.includes("buy.stripe.com")) {
+          return 0
+        }
+        const productId = this._extractProductIdFromLink(paymentLink)
+        return this.purchasedItems.get(productId) || 0
+      }
+  
       // ✅ BLOC DE TEST POUR SIMULER UN ACHAT
       simulatePurchase(args) {
         const paymentLink = args.PAYMENT_LINK.trim()
@@ -124,9 +154,10 @@
   
         const productId = this._extractProductIdFromLink(paymentLink)
   
-        // Simuler l'achat
-        this.purchasedItems.add(productId)
-        this._showNotification(`🧪 TEST: Purchase simulated for ${productId}`, "info")
+        // ✅ PLUS DE LIMITATION - Toujours permettre l'achat
+        this._addPurchase(productId)
+        const count = this.purchasedItems.get(productId)
+        this._showNotification(`🧪 TEST: Purchase #${count} simulated for ${productId}`, "info")
   
         // Déclencher l'événement
         this._triggerPurchaseEvent(productId, paymentLink)
@@ -215,7 +246,11 @@
           })
           if (response.ok) {
             const { purchases } = await response.json()
-            this.purchasedItems = new Set(purchases)
+            // ✅ Convertir le tableau en Map avec compteurs
+            this.purchasedItems = new Map()
+            purchases.forEach((productId) => {
+              this._addPurchase(productId)
+            })
             console.log("✅ Purchases loaded from server:", purchases)
           }
         } catch (error) {
@@ -236,14 +271,11 @@
         const productId = this._extractProductIdFromLink(paymentLink)
         console.log("Extracted product ID:", productId)
   
-        if (this.purchasedItems.has(productId)) {
-          this._showNotification(`✅ Item already purchased!`, "info")
-          return
-        }
+        // ✅ PLUS DE VÉRIFICATION - Toujours permettre l'achat
+        const currentCount = this.purchasedItems.get(productId) || 0
+        this._showNotification(`🔄 Processing purchase #${currentCount + 1}...`, "info")
   
         try {
-          this._showNotification("🔄 Processing payment link...", "info")
-  
           // Créer une session de checkout avec le Payment Link
           const response = await fetch(`${this.serverURL}/create-checkout-link`, {
             method: "POST",
@@ -277,6 +309,8 @@
       }
   
       _showCheckoutConfirmation(itemName, checkoutUrl, sessionId, productId, paymentLink) {
+        const currentCount = this.purchasedItems.get(productId) || 0
+  
         const overlay = document.createElement("div")
         overlay.style.cssText = `
                   position: fixed;
@@ -309,7 +343,7 @@
                           <span style="font-size: 24px;">🔒</span>
                       </div>
                       <h2 style="margin: 0 0 8px 0; color: #1a1a1a; font-size: 24px; font-weight: 600;">Secure Purchase</h2>
-                      <p style="margin: 0; color: #666; font-size: 14px;">Purchase "${itemName}"</p>
+                      <p style="margin: 0; color: #666; font-size: 14px;">Purchase "${itemName}" ${currentCount > 0 ? `(#${currentCount + 1})` : ""}</p>
                   </div>
   
                   <div style="background: #f8f9fa; border-radius: 8px; padding: 16px; margin: 20px 0;">
@@ -322,11 +356,19 @@
                       </p>
                   </div>
   
-                  <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 12px; margin: 16px 0;">
+                  ${
+                    currentCount > 0
+                      ? `<div style="background: #e3f2fd; border: 1px solid #2196f3; border-radius: 8px; padding: 12px; margin: 16px 0;">
+                      <p style="margin: 0; color: #1976d2; font-size: 12px;">
+                          <strong>Note:</strong> You already own ${currentCount} of this item. This will be purchase #${currentCount + 1}.
+                      </p>
+                  </div>`
+                      : `<div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 12px; margin: 16px 0;">
                       <p style="margin: 0; color: #856404; font-size: 12px;">
                           <strong>Note:</strong> After payment, return to your game to verify the purchase.
                       </p>
-                  </div>
+                  </div>`
+                  }
   
                   <div style="display: flex; gap: 12px; margin-top: 24px;">
                       <button id="cancel-secure-purchase" style="
@@ -423,8 +465,9 @@
   
               if (purchased) {
                 // Achat confirmé par le serveur !
-                this.purchasedItems.add(productId)
-                this._showNotification(`✅ ${itemName} purchased and verified!`, "success")
+                this._addPurchase(productId)
+                const newCount = this.purchasedItems.get(productId)
+                this._showNotification(`✅ ${itemName} purchased! (Total: ${newCount})`, "success")
   
                 // ✅ DÉCLENCHER L'ÉVÉNEMENT D'ACHAT
                 this._triggerPurchaseEvent(productId, paymentLink)
@@ -486,8 +529,9 @@
             const { purchased } = await response.json()
   
             if (purchased) {
-              this.purchasedItems.add(productId)
-              this._showNotification(`✅ Item verified and unlocked!`, "success")
+              this._addPurchase(productId)
+              const newCount = this.purchasedItems.get(productId)
+              this._showNotification(`✅ Item verified! (Total: ${newCount})`, "success")
   
               // ✅ DÉCLENCHER L'ÉVÉNEMENT D'ACHAT
               this._triggerPurchaseEvent(productId, paymentLink)
@@ -509,36 +553,8 @@
   
         const productId = this._extractProductIdFromLink(paymentLink)
   
-        // Vérifier d'abord localement
-        if (this.purchasedItems.has(productId)) {
-          return true
-        }
-  
-        // Vérifier sur le serveur
-        try {
-          const response = await fetch(`${this.serverURL}/check-purchase`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              userId: this.userId,
-              productId: productId,
-            }),
-          })
-  
-          if (response.ok) {
-            const { purchased } = await response.json()
-            if (purchased) {
-              this.purchasedItems.add(productId)
-              return true
-            }
-          }
-        } catch (error) {
-          console.error("Purchase check error:", error)
-        }
-  
-        return false
+        // ✅ Vérifier si l'utilisateur a au moins un achat de ce produit
+        return this.purchasedItems.has(productId) && this.purchasedItems.get(productId) > 0
       }
   
       async refreshPurchases() {
@@ -548,7 +564,11 @@
       }
   
       getPurchasedItems() {
-        return JSON.stringify([...this.purchasedItems])
+        const items = []
+        for (const [productId, count] of this.purchasedItems) {
+          items.push(`${productId} (x${count})`)
+        }
+        return JSON.stringify(items)
       }
   
       getUserId() {
@@ -587,7 +607,8 @@
                   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
               `
   
-        const purchasedList = [...this.purchasedItems]
+        const purchasedList = Array.from(this.purchasedItems.entries())
+        const totalPurchases = Array.from(this.purchasedItems.values()).reduce((sum, count) => sum + count, 0)
   
         modal.innerHTML = `
                   <div style="text-align: center; margin-bottom: 24px;">
@@ -605,7 +626,8 @@
                           <span style="font-weight: 600; color: #1a1a1a;">Statistics</span>
                       </div>
                       <div style="font-size: 14px; color: #666;">
-                          Total verified purchases: <strong style="color: #28a745;">${purchasedList.length}</strong>
+                          Total purchases: <strong style="color: #28a745;">${totalPurchases}</strong><br>
+                          Unique items: <strong style="color: #2196f3;">${purchasedList.length}</strong>
                       </div>
                   </div>
   
@@ -619,11 +641,11 @@
                           ? '<div style="text-align: center; padding: 20px; color: #666; font-style: italic;">No verified purchases yet</div>'
                           : purchasedList
                               .map(
-                                (item) => `
+                                ([productId, count]) => `
                               <div style="display: flex; align-items: center; gap: 8px; padding: 8px; background: #e8f5e8; border-radius: 6px; margin-bottom: 6px;">
                                   <span style="color: #28a745;">🔒</span>
-                                  <span style="color: #1a1a1a; font-weight: 500; font-family: monospace; font-size: 12px;">${item}</span>
-                                  <span style="color: #28a745; font-size: 12px; margin-left: auto;">Verified</span>
+                                  <span style="color: #1a1a1a; font-weight: 500; font-family: monospace; font-size: 12px;">${productId}</span>
+                                  <span style="color: #2196f3; font-size: 12px; margin-left: auto; background: #e3f2fd; padding: 2px 6px; border-radius: 4px;">x${count}</span>
                               </div>
                           `,
                               )
