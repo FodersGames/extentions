@@ -1,167 +1,150 @@
-// Extension Scratch pour Stripe avec backend sécurisé
-// Fichier: scratch-extension-with-backend.js
-
+// Extension Scratch Stripe avec Backend - Version Finale
 ;((Scratch) => {
-    class StripePaymentExtension {
+    class StripeBackendExtension {
       constructor() {
-        this.apiBaseUrl = window.location.origin // URL de votre backend
+        this.apiBaseUrl = window.location.origin
         this.paymentStatus = "none"
-        this.currentSession = null
-        this.lastPurchase = null
+        this.failReason = ""
+        this.lastPaymentLink = ""
         this.isPolling = false
       }
   
       getInfo() {
         return {
-          id: "stripePayment",
-          name: "Stripe Payment",
+          id: "stripeBackend",
+          name: "Stripe Backend",
           color1: "#6772E5",
           color2: "#5469D4",
           blocks: [
             {
-              opcode: "openPaymentLink",
+              opcode: "openPayment",
               blockType: Scratch.BlockType.COMMAND,
-              text: "open payment [PAYMENT_LINK] for user [USER_ID]",
+              text: "open payment [PAYMENT_LINK]",
               arguments: {
                 PAYMENT_LINK: {
                   type: Scratch.ArgumentType.STRING,
-                  defaultValue: "https://buy.stripe.com/...",
-                },
-                USER_ID: {
-                  type: Scratch.ArgumentType.STRING,
-                  defaultValue: "player1",
+                  defaultValue: "https://buy.stripe.com/test_...",
                 },
               },
             },
             {
-              opcode: "verifyPayment",
-              blockType: Scratch.BlockType.COMMAND,
-              text: "verify payment with session [SESSION_ID] for user [USER_ID]",
-              arguments: {
-                SESSION_ID: {
-                  type: Scratch.ArgumentType.STRING,
-                  defaultValue: "",
-                },
-                USER_ID: {
-                  type: Scratch.ArgumentType.STRING,
-                  defaultValue: "player1",
-                },
-              },
-            },
-            {
-              opcode: "checkPaymentStatus",
-              blockType: Scratch.BlockType.COMMAND,
-              text: "check payment status for session [SESSION_ID]",
-              arguments: {
-                SESSION_ID: {
-                  type: Scratch.ArgumentType.STRING,
-                  defaultValue: "",
-                },
-              },
-            },
-            {
-              opcode: "waitForPaymentVerification",
-              blockType: Scratch.BlockType.COMMAND,
-              text: "wait for payment verification (check every [INTERVAL] seconds, timeout [TIMEOUT] seconds)",
-              arguments: {
-                INTERVAL: {
-                  type: Scratch.ArgumentType.NUMBER,
-                  defaultValue: 5,
-                },
-                TIMEOUT: {
-                  type: Scratch.ArgumentType.NUMBER,
-                  defaultValue: 300,
-                },
-              },
-            },
-            {
-              opcode: "whenPaymentVerified",
+              opcode: "whenPaymentSuccess",
               blockType: Scratch.BlockType.HAT,
-              text: "when payment verified for [PAYMENT_LINK]",
+              text: "when payment succeeded for [PAYMENT_LINK]",
               arguments: {
                 PAYMENT_LINK: {
                   type: Scratch.ArgumentType.STRING,
-                  defaultValue: "https://buy.stripe.com/...",
+                  defaultValue: "https://buy.stripe.com/test_...",
                 },
               },
             },
             {
-              opcode: "getPaymentStatus",
-              blockType: Scratch.BlockType.REPORTER,
-              text: "payment status",
-            },
-            {
-              opcode: "getLastPurchaseInfo",
-              blockType: Scratch.BlockType.REPORTER,
-              text: "last purchase [INFO]",
+              opcode: "whenPaymentFailed",
+              blockType: Scratch.BlockType.HAT,
+              text: "when payment failed for [PAYMENT_LINK]",
               arguments: {
-                INFO: {
+                PAYMENT_LINK: {
                   type: Scratch.ArgumentType.STRING,
-                  menu: "infoMenu",
-                  defaultValue: "amount",
+                  defaultValue: "https://buy.stripe.com/test_...",
                 },
               },
             },
             {
-              opcode: "isPaymentValid",
-              blockType: Scratch.BlockType.BOOLEAN,
-              text: "is payment valid?",
+              opcode: "getFailReason",
+              blockType: Scratch.BlockType.REPORTER,
+              text: "payment fail reason",
             },
             {
-              opcode: "getCurrentSessionId",
-              blockType: Scratch.BlockType.REPORTER,
-              text: "current session ID",
+              opcode: "simulatePayment",
+              blockType: Scratch.BlockType.COMMAND,
+              text: "simulate payment [TYPE] for [PAYMENT_LINK]",
+              arguments: {
+                TYPE: {
+                  type: Scratch.ArgumentType.STRING,
+                  menu: "simulateMenu",
+                  defaultValue: "success",
+                },
+                PAYMENT_LINK: {
+                  type: Scratch.ArgumentType.STRING,
+                  defaultValue: "https://buy.stripe.com/test_...",
+                },
+              },
             },
           ],
           menus: {
-            infoMenu: {
-              acceptReporters: true,
-              items: ["amount", "email", "sessionId", "timestamp"],
+            simulateMenu: {
+              acceptReporters: false,
+              items: ["success", "cancelled", "failed"],
             },
           },
         }
       }
   
-      openPaymentLink(args) {
-        const { PAYMENT_LINK, USER_ID } = args
-        const sessionId = this.generateSessionId()
-  
-        // Créer une session locale
-        this.currentSession = {
-          sessionId,
-          userId: USER_ID,
-          paymentLink: PAYMENT_LINK,
-          timestamp: Date.now(),
-          status: "initiated",
-        }
-  
+      async openPayment(args) {
+        const { PAYMENT_LINK } = args
+        this.lastPaymentLink = PAYMENT_LINK
         this.paymentStatus = "pending"
+        this.failReason = ""
   
-        // Créer l'URL avec les paramètres de session
-        const returnUrl = window.location.href
-        const successUrl = `${returnUrl}?payment_success=true&session_id={CHECKOUT_SESSION_ID}&user_id=${USER_ID}`
-        const cancelUrl = `${returnUrl}?payment_cancelled=true&session_id={CHECKOUT_SESSION_ID}&user_id=${USER_ID}`
+        const sessionId = this.generateSessionId()
+        const userId = "player1"
   
-        // Ajouter les URLs au lien Stripe
+        // Créer les URLs de retour
+        const baseUrl = window.location.origin + window.location.pathname
+        const successUrl = `${baseUrl}?payment_success=true&session_id={CHECKOUT_SESSION_ID}&payment_link=${encodeURIComponent(PAYMENT_LINK)}`
+        const cancelUrl = `${baseUrl}?payment_cancelled=true&session_id={CHECKOUT_SESSION_ID}&payment_link=${encodeURIComponent(PAYMENT_LINK)}`
+  
+        // Ajouter les paramètres au lien Stripe
         const separator = PAYMENT_LINK.includes("?") ? "&" : "?"
-        const fullUrl = `${PAYMENT_LINK}${separator}success_url=${encodeURIComponent(
-          successUrl,
-        )}&cancel_url=${encodeURIComponent(cancelUrl)}&client_reference_id=${sessionId}_${USER_ID}`
+        const fullUrl = `${PAYMENT_LINK}${separator}success_url=${encodeURIComponent(successUrl)}&cancel_url=${encodeURIComponent(cancelUrl)}&client_reference_id=${sessionId}_${userId}`
   
         // Ouvrir le paiement
         window.open(fullUrl, "stripe_payment", "width=800,height=600")
   
-        console.log(`Payment initiated for user ${USER_ID} with session ${sessionId}`)
+        // Commencer à vérifier le statut
+        this.startPolling()
+  
+        console.log(`Payment opened: ${PAYMENT_LINK}`)
       }
   
-      async verifyPayment(args) {
-        const { SESSION_ID, USER_ID } = args
+      startPolling() {
+        if (this.isPolling) return
+        this.isPolling = true
   
-        if (!SESSION_ID || !USER_ID) {
-          this.paymentStatus = "error"
-          return
+        const checkPayment = async () => {
+          // Vérifier les paramètres d'URL
+          const urlParams = new URLSearchParams(window.location.search)
+          const paymentSuccess = urlParams.get("payment_success")
+          const paymentCancelled = urlParams.get("payment_cancelled")
+          const sessionId = urlParams.get("session_id")
+          const paymentLink = urlParams.get("payment_link")
+  
+          if (paymentSuccess === "true" && sessionId && paymentLink) {
+            await this.verifyPayment(sessionId, decodeURIComponent(paymentLink))
+            this.cleanUrl()
+            this.isPolling = false
+            return
+          }
+  
+          if (paymentCancelled === "true" && paymentLink) {
+            this.handlePaymentFailed(decodeURIComponent(paymentLink), "cancelled")
+            this.cleanUrl()
+            this.isPolling = false
+            return
+          }
+  
+          // Continuer à vérifier
+          if (this.paymentStatus === "pending") {
+            setTimeout(checkPayment, 2000)
+          } else {
+            this.isPolling = false
+          }
         }
   
+        checkPayment()
+      }
+  
+      async verifyPayment(sessionId, paymentLink) {
         try {
           const response = await fetch(`${this.apiBaseUrl}/api/payment/verify`, {
             method: "POST",
@@ -169,151 +152,82 @@
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              sessionId: SESSION_ID,
-              userId: USER_ID,
-              paymentLink: this.currentSession?.paymentLink,
+              sessionId: sessionId,
+              userId: "player1",
+              paymentLink: paymentLink,
             }),
           })
   
           const result = await response.json()
   
           if (result.success) {
-            this.paymentStatus = "completed"
-            this.lastPurchase = result.payment
-  
-            // Déclencher l'événement
-            this.runtime.startHats("stripePayment_whenPaymentVerified", {
-              PAYMENT_LINK: this.currentSession?.paymentLink || "",
-            })
-  
-            console.log("Payment verified successfully!")
+            this.handlePaymentSuccess(paymentLink)
           } else {
-            this.paymentStatus = "failed"
-            console.error("Payment verification failed:", result.error)
+            this.handlePaymentFailed(paymentLink, result.error || "verification_failed")
           }
         } catch (error) {
-          this.paymentStatus = "error"
-          console.error("Error verifying payment:", error)
+          console.error("Verification error:", error)
+          this.handlePaymentFailed(paymentLink, "network_error")
         }
       }
   
-      async checkPaymentStatus(args) {
-        const { SESSION_ID } = args
+      handlePaymentSuccess(paymentLink) {
+        this.paymentStatus = "success"
+        this.lastPaymentLink = paymentLink
+        this.failReason = ""
   
-        if (!SESSION_ID) {
-          return
-        }
+        console.log(`✅ Payment verified: ${paymentLink}`)
   
-        try {
-          const response = await fetch(
-            `${this.apiBaseUrl}/api/payment/status?sessionId=${SESSION_ID}&userId=${this.currentSession?.userId || ""}`,
-          )
-  
-          const result = await response.json()
-          this.paymentStatus = result.status
-  
-          if (result.status === "completed" && result.details) {
-            this.lastPurchase = {
-              sessionId: SESSION_ID,
-              amount: result.details.amount / 100, // Convertir de centimes
-              email: result.details.email,
-              timestamp: result.timestamp,
-              valid: true,
-            }
-          }
-  
-          console.log("Payment status:", result.status)
-        } catch (error) {
-          console.error("Error checking payment status:", error)
-          this.paymentStatus = "error"
-        }
-      }
-  
-      async waitForPaymentVerification(args) {
-        const { INTERVAL, TIMEOUT } = args
-        const intervalMs = INTERVAL * 1000
-        const timeoutMs = TIMEOUT * 1000
-        const startTime = Date.now()
-  
-        if (this.isPolling) {
-          console.log("Already polling for payment")
-          return
-        }
-  
-        this.isPolling = true
-  
-        return new Promise((resolve) => {
-          const checkPayment = async () => {
-            // Vérifier les paramètres d'URL pour le retour de Stripe
-            const urlParams = new URLSearchParams(window.location.search)
-            const stripeSessionId = urlParams.get("session_id")
-            const userId = urlParams.get("user_id")
-  
-            if (stripeSessionId && userId) {
-              await this.verifyPayment({
-                SESSION_ID: stripeSessionId,
-                USER_ID: userId,
-              })
-              this.cleanUrl()
-            }
-  
-            if (this.paymentStatus === "completed") {
-              this.isPolling = false
-              resolve()
-            } else if (Date.now() - startTime > timeoutMs) {
-              this.paymentStatus = "timeout"
-              this.isPolling = false
-              resolve()
-            } else {
-              setTimeout(checkPayment, intervalMs)
-            }
-          }
-  
-          checkPayment()
+        // Déclencher l'événement
+        this.runtime.startHats("stripeBackend_whenPaymentSuccess", {
+          PAYMENT_LINK: paymentLink,
         })
       }
   
-      whenPaymentVerified(args) {
-        return true
+      handlePaymentFailed(paymentLink, reason) {
+        this.paymentStatus = "failed"
+        this.lastPaymentLink = paymentLink
+        this.failReason = reason
+  
+        console.log(`❌ Payment failed: ${paymentLink}, reason: ${reason}`)
+  
+        // Déclencher l'événement
+        this.runtime.startHats("stripeBackend_whenPaymentFailed", {
+          PAYMENT_LINK: paymentLink,
+        })
       }
   
-      getPaymentStatus() {
-        return this.paymentStatus
+      whenPaymentSuccess(args) {
+        const { PAYMENT_LINK } = args
+        return this.paymentStatus === "success" && this.lastPaymentLink === PAYMENT_LINK
       }
   
-      getLastPurchaseInfo(args) {
-        const { INFO } = args
-        if (!this.lastPurchase) return ""
+      whenPaymentFailed(args) {
+        const { PAYMENT_LINK } = args
+        return this.paymentStatus === "failed" && this.lastPaymentLink === PAYMENT_LINK
+      }
   
-        switch (INFO) {
-          case "amount":
-            return this.lastPurchase.amount || 0
-          case "email":
-            return this.lastPurchase.email || ""
-          case "sessionId":
-            return this.lastPurchase.sessionId || ""
-          case "timestamp":
-            return this.lastPurchase.timestamp || ""
-          default:
-            return ""
+      getFailReason() {
+        return this.failReason
+      }
+  
+      async simulatePayment(args) {
+        const { TYPE, PAYMENT_LINK } = args
+  
+        console.log(`🧪 Simulating ${TYPE} payment for: ${PAYMENT_LINK}`)
+  
+        // Simuler un délai
+        await new Promise((resolve) => setTimeout(resolve, 1000))
+  
+        if (TYPE === "success") {
+          this.handlePaymentSuccess(PAYMENT_LINK)
+        } else {
+          this.handlePaymentFailed(PAYMENT_LINK, TYPE)
         }
       }
   
-      isPaymentValid() {
-        if (!this.lastPurchase) return false
-  
-        // Vérifier que l'achat est récent (moins de 5 minutes)
-        const fiveMinutes = 5 * 60 * 1000
-        const purchaseTime = new Date(this.lastPurchase.timestamp).getTime()
-        return Date.now() - purchaseTime < fiveMinutes
-      }
-  
-      getCurrentSessionId() {
-        return this.currentSession?.sessionId || ""
-      }
-  
       generateSessionId() {
-        return "scratch_" + Math.random().toString(36).substr(2, 9) + "_" + Date.now()
+        return "sim_" + Math.random().toString(36).substr(2, 9) + "_" + Date.now()
       }
   
       cleanUrl() {
@@ -321,11 +235,11 @@
         url.searchParams.delete("payment_success")
         url.searchParams.delete("payment_cancelled")
         url.searchParams.delete("session_id")
-        url.searchParams.delete("user_id")
+        url.searchParams.delete("payment_link")
         window.history.replaceState({}, document.title, url.toString())
       }
     }
   
-    Scratch.extensions.register(new StripePaymentExtension())
+    Scratch.extensions.register(new StripeBackendExtension())
   })(Scratch)
   
