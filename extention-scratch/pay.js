@@ -1,7 +1,7 @@
 ;((Scratch) => {
     class SecureStripePurchaseExtension {
       constructor() {
-        this.serverURL = "https://VOTRE-DOMAINE-VERCEL.vercel.app/api" // ⚠️ REMPLACEZ PAR VOTRE URL VERCEL
+        this.serverURL = "https://VOTRE-VRAIE-URL-VERCEL.vercel.app/api" // ⚠️ REMPLACEZ PAR VOTRE VRAIE URL VERCEL
         this.purchasedItems = new Set()
         this.userId = this._generateUserId()
         this.checkIntervals = new Map()
@@ -60,9 +60,9 @@
               text: "📊 Show purchase status",
             },
             {
-              opcode: "getLastPurchase",
-              blockType: Scratch.BlockType.REPORTER,
-              text: "Last purchased item",
+              opcode: "testConnection",
+              blockType: Scratch.BlockType.COMMAND,
+              text: "🔧 Test server connection",
             },
           ],
         }
@@ -79,9 +79,25 @@
   
       _extractProductIdFromLink(paymentLink) {
         // Extraire l'ID du produit depuis le Payment Link
-        // Format: https://buy.stripe.com/test_xxxxx ou https://buy.stripe.com/xxxxx
         const match = paymentLink.match(/buy\.stripe\.com\/(test_)?(.+)$/)
         return match ? match[2] : paymentLink
+      }
+  
+      async testConnection() {
+        try {
+          this._showNotification("🔧 Testing server connection...", "info")
+  
+          const response = await fetch(`${this.serverURL}/check-purchase?userId=test`)
+  
+          if (response.ok) {
+            this._showNotification("✅ Server connection successful!", "success")
+          } else {
+            this._showNotification(`❌ Server error: ${response.status}`, "error")
+          }
+        } catch (error) {
+          console.error("Connection test failed:", error)
+          this._showNotification("❌ Connection failed - Check server URL", "error")
+        }
       }
   
       async _loadPurchasesFromServer() {
@@ -100,12 +116,15 @@
       async purchaseWithLink(args) {
         const paymentLink = args.PAYMENT_LINK.trim()
   
+        console.log("Purchase attempt with link:", paymentLink)
+  
         if (!paymentLink || !paymentLink.includes("buy.stripe.com")) {
           this._showNotification("❌ Invalid Stripe Payment Link", "error")
           return
         }
   
         const productId = this._extractProductIdFromLink(paymentLink)
+        console.log("Extracted product ID:", productId)
   
         if (this.purchasedItems.has(productId)) {
           this._showNotification(`✅ Item already purchased!`, "info")
@@ -113,6 +132,8 @@
         }
   
         try {
+          this._showNotification("🔄 Processing payment link...", "info")
+  
           // Créer une session de checkout avec le Payment Link
           const response = await fetch(`${this.serverURL}/create-checkout-link`, {
             method: "POST",
@@ -126,17 +147,22 @@
             }),
           })
   
+          console.log("API Response status:", response.status)
+  
           if (!response.ok) {
-            throw new Error("Failed to process payment link")
+            const errorData = await response.json()
+            console.error("API Error:", errorData)
+            throw new Error(errorData.error || "Failed to process payment link")
           }
   
           const { sessionId, url, productName } = await response.json()
+          console.log("API Response:", { sessionId, url, productName })
   
           // Afficher la fenêtre de confirmation
           this._showCheckoutConfirmation(productName || "Item", url, sessionId, productId)
         } catch (error) {
           console.error("❌ Purchase failed:", error)
-          this._showNotification("❌ Failed to start purchase", "error")
+          this._showNotification(`❌ Failed to start purchase: ${error.message}`, "error")
         }
       }
   
@@ -182,7 +208,13 @@
                           <span style="color: #28a745; font-weight: 600; font-size: 14px;">Secured by Stripe</span>
                       </div>
                       <p style="margin: 0; color: #666; font-size: 12px;">
-                          Your purchase will be automatically verified by our secure backend
+                          You will be redirected to Stripe's secure payment page
+                      </p>
+                  </div>
+  
+                  <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 12px; margin: 16px 0;">
+                      <p style="margin: 0; color: #856404; font-size: 12px;">
+                          <strong>Note:</strong> After payment, return to your game to verify the purchase.
                       </p>
                   </div>
   
@@ -227,12 +259,20 @@
         })
   
         modal.querySelector("#proceed-secure-purchase").addEventListener("click", () => {
-          // Ouvrir Stripe Checkout
+          console.log("Opening payment link:", checkoutUrl)
+  
+          // Ouvrir le Payment Link dans une nouvelle fenêtre
           const checkoutWindow = window.open(
             checkoutUrl,
             "stripe-checkout",
             "width=800,height=600,scrollbars=yes,resizable=yes",
           )
+  
+          if (!checkoutWindow) {
+            this._showNotification("❌ Popup blocked! Please allow popups and try again.", "error")
+            return
+          }
+  
           overlay.remove()
   
           // Commencer la vérification automatique
@@ -247,7 +287,7 @@
       }
   
       _startSecurePurchaseCheck(itemName, productId, checkoutWindow) {
-        this._showNotification(`🔄 Processing payment for ${itemName}...`, "info")
+        this._showNotification(`🔄 Waiting for payment completion...`, "info")
   
         let checkCount = 0
         const maxChecks = 180 // 6 minutes max
@@ -304,7 +344,10 @@
   
           // Timeout
           if (checkCount >= maxChecks) {
-            this._showNotification("⏰ Purchase verification timeout", "warning")
+            this._showNotification(
+              "⏰ Purchase verification timeout - Use 'Refresh purchases' to check manually",
+              "warning",
+            )
             clearInterval(checkInterval)
             this.checkIntervals.delete(productId)
           }
@@ -333,7 +376,7 @@
               this.purchasedItems.add(productId)
               this._showNotification(`✅ Item verified and unlocked!`, "success")
             } else {
-              this._showNotification(`ℹ️ Purchase not detected`, "info")
+              this._showNotification(`ℹ️ Purchase not detected yet - Use 'Refresh purchases' to check again`, "info")
             }
           }
         } catch (error) {
@@ -396,11 +439,6 @@
         return this.userId
       }
   
-      getLastPurchase() {
-        const purchases = [...this.purchasedItems]
-        return purchases.length > 0 ? purchases[purchases.length - 1] : ""
-      }
-  
       showPurchaseStatus() {
         this._createStatusWindow()
       }
@@ -440,8 +478,9 @@
                       <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #635BFF, #4F46E5); border-radius: 50%; margin: 0 auto 16px; display: flex; align-items: center; justify-content: center;">
                           <span style="font-size: 24px;">🔒</span>
                       </div>
-                      <h2 style="margin: 0 0 8px 0; color: #1a1a1a; font-size: 24px; font-weight: 600;">Secure Purchase Status</h2>
+                      <h2 style="margin: 0 0 8px 0; color: #1a1a1a; font-size: 24px; font-weight: 600;">Purchase Status</h2>
                       <p style="margin: 0; color: #666; font-size: 14px;">User ID: ${this.userId}</p>
+                      <p style="margin: 4px 0 0 0; color: #666; font-size: 12px;">Server: ${this.serverURL}</p>
                   </div>
   
                   <div style="background: #f8f9fa; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
@@ -477,6 +516,18 @@
                   </div>
   
                   <div style="display: flex; gap: 12px;">
+                      <button id="test-connection" style="
+                          flex: 1;
+                          padding: 12px;
+                          border: 2px solid #17a2b8;
+                          background: white;
+                          color: #17a2b8;
+                          border-radius: 8px;
+                          font-size: 14px;
+                          font-weight: 600;
+                          cursor: pointer;
+                          transition: all 0.2s;
+                      ">🔧 Test</button>
                       <button id="refresh-purchases" style="
                           flex: 1;
                           padding: 12px;
@@ -508,6 +559,10 @@
         document.body.appendChild(overlay)
   
         // Event listeners
+        modal.querySelector("#test-connection").addEventListener("click", async () => {
+          await this.testConnection()
+        })
+  
         modal.querySelector("#refresh-purchases").addEventListener("click", async () => {
           await this.refreshPurchases()
           overlay.remove()
