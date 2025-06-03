@@ -1,4 +1,4 @@
-// Extension Stripe FINAL - Vérification backend automatique
+// Extension Stripe FINAL - Version CORS-proof
 ;((Scratch) => {
     class StripeExtensionFinal {
       constructor(runtime) {
@@ -6,8 +6,10 @@
         this.paymentStatus = "none"
         this.currentPaymentLink = ""
         this.sessionId = ""
+        this.checkAttempts = 0
+        this.maxAttempts = 30
   
-        console.log("🚀 Stripe Extension FINAL - Vérification backend automatique")
+        console.log("🚀 Stripe Extension FINAL - Version CORS-proof")
       }
   
       getInfo() {
@@ -79,6 +81,7 @@
         this.paymentStatus = "pending"
         this.currentPaymentLink = paymentLink
         this.sessionId = "scratch_" + Math.random().toString(36).substr(2, 9) + "_" + Date.now()
+        this.checkAttempts = 0
   
         // Ouvrir la fenêtre Stripe
         const separator = paymentLink.includes("?") ? "&" : "?"
@@ -101,65 +104,88 @@
             clearInterval(checkClosed)
             console.log("🔄 Fenêtre fermée, vérification backend...")
   
-            // Vérifier avec le backend
-            this.verifyPaymentWithBackend()
+            // Attendre un peu pour laisser le temps au paiement d'être traité
+            setTimeout(() => {
+              this.startPaymentCheck()
+            }, 2000)
           }
         }, 1000)
       }
   
-      // Vérification backend via JSONP (contourne CORS)
-      verifyPaymentWithBackend() {
-        console.log("🔍 Vérification backend en cours...")
+      // Démarrer la vérification du paiement
+      startPaymentCheck() {
+        console.log("🔄 Démarrage de la vérification...")
+        this.checkPaymentStatus()
+      }
   
-        // Créer un callback unique
-        const callbackName = "stripeCallback_" + Date.now()
+      // Vérifier le statut du paiement
+      checkPaymentStatus() {
+        this.checkAttempts++
+        console.log(`🔍 Tentative ${this.checkAttempts}/${this.maxAttempts}`)
   
-        // Créer la promesse
-        const verificationPromise = new Promise((resolve, reject) => {
-          // Timeout après 10 secondes
-          const timeout = setTimeout(() => {
-            delete window[callbackName]
-            reject(new Error("Timeout de vérification"))
-          }, 10000)
+        // Utiliser une image pour contourner CORS
+        const img = new Image()
   
-          // Définir le callback global
-          window[callbackName] = (result) => {
-            clearTimeout(timeout)
-            delete window[callbackName]
+        // Timestamp pour éviter le cache
+        const timestamp = Date.now()
   
-            if (result.success) {
-              resolve(result)
-            } else {
-              reject(new Error(result.error || "Vérification échouée"))
+        // URL de l'API qui renvoie une image selon le statut du paiement
+        img.src = `https://v0-scratch-extension-issue.vercel.app/api/verify-image?sessionId=${this.sessionId}&t=${timestamp}`
+  
+        // Succès - Image chargée
+        img.onload = () => {
+          // Vérifier la couleur de l'image (vert = succès, rouge = échec)
+          try {
+            const canvas = document.createElement("canvas")
+            canvas.width = 1
+            canvas.height = 1
+            const ctx = canvas.getContext("2d")
+            ctx.drawImage(img, 0, 0)
+  
+            // Obtenir la couleur du pixel
+            const pixel = ctx.getImageData(0, 0, 1, 1).data
+  
+            // Vert = succès (R<G et B<G)
+            if (pixel[1] > pixel[0] && pixel[1] > pixel[2]) {
+              console.log("✅ Paiement vérifié (image verte)")
+              this.paymentStatus = "success"
+              this.triggerHatBlocks()
             }
+            // Rouge = échec (R>G et R>B)
+            else if (pixel[0] > pixel[1] && pixel[0] > pixel[2]) {
+              console.log("❌ Paiement échoué (image rouge)")
+              this.paymentStatus = "failed"
+              this.triggerHatBlocks()
+            }
+            // Autre couleur = continuer à vérifier
+            else {
+              this.continueChecking()
+            }
+          } catch (error) {
+            console.error("❌ Erreur analyse image:", error)
+            this.continueChecking()
           }
-        })
+        }
   
-        // Créer le script JSONP
-        const script = document.createElement("script")
-        script.src = `https://v0-scratch-extension-issue.vercel.app/api/verify-payment?sessionId=${this.sessionId}&paymentLink=${encodeURIComponent(this.currentPaymentLink)}&callback=${callbackName}`
+        // Erreur - Image non chargée
+        img.onerror = () => {
+          console.log("❌ Erreur chargement image")
+          this.continueChecking()
+        }
+      }
   
-        // Ajouter le script
-        document.head.appendChild(script)
-  
-        // Gérer la réponse
-        verificationPromise
-          .then((result) => {
-            console.log("✅ Vérification réussie:", result)
-            this.paymentStatus = "success"
-            this.triggerHatBlocks()
-          })
-          .catch((error) => {
-            console.error("❌ Vérification échouée:", error)
-            this.paymentStatus = "failed"
-            this.triggerHatBlocks()
-          })
-          .finally(() => {
-            // Nettoyer le script
-            if (script.parentNode) {
-              script.parentNode.removeChild(script)
-            }
-          })
+      // Continuer à vérifier ou abandonner
+      continueChecking() {
+        if (this.checkAttempts < this.maxAttempts) {
+          // Attendre 1 seconde avant la prochaine tentative
+          setTimeout(() => {
+            this.checkPaymentStatus()
+          }, 1000)
+        } else {
+          console.log("⏰ Timeout après " + this.maxAttempts + " tentatives")
+          this.paymentStatus = "failed"
+          this.triggerHatBlocks()
+        }
       }
   
       // === ÉVÉNEMENTS HAT ===
