@@ -1,7 +1,7 @@
 ;((Scratch) => {
     class SecureStripePurchaseExtension {
       constructor() {
-        this.serverURL = "https://v0-scratch-extension-issue.vercel.app/api" // ✅ URL CORRECTE
+        this.serverURL = "https://v0-scratch-extension-issue.vercel.app/api"
         this.purchasedItems = new Set()
         this.userId = this._generateUserId()
         this.checkIntervals = new Map()
@@ -38,6 +38,24 @@
                   defaultValue: "https://buy.stripe.com/test_...",
                 },
               },
+            },
+            // ✅ NOUVEAU BLOC ÉVÉNEMENT
+            {
+              opcode: "whenPurchaseCompleted",
+              blockType: Scratch.BlockType.EVENT,
+              text: "🎉 When purchase completed [PAYMENT_LINK]",
+              isEdgeActivated: false,
+              arguments: {
+                PAYMENT_LINK: {
+                  type: Scratch.ArgumentType.STRING,
+                  defaultValue: "https://buy.stripe.com/test_...",
+                },
+              },
+            },
+            {
+              opcode: "getLastPurchasedItem",
+              blockType: Scratch.BlockType.REPORTER,
+              text: "Last purchased item",
             },
             {
               opcode: "refreshPurchases",
@@ -81,6 +99,49 @@
         // Extraire l'ID du produit depuis le Payment Link
         const match = paymentLink.match(/buy\.stripe\.com\/(test_)?(.+)$/)
         return match ? match[2] : paymentLink
+      }
+  
+      // ✅ NOUVELLE FONCTION POUR DÉCLENCHER L'ÉVÉNEMENT
+      _triggerPurchaseEvent(productId, paymentLink) {
+        this.lastPurchasedItem = productId
+        this.lastPurchasedLink = paymentLink
+  
+        // Déclencher l'événement pour tous les blocs "When purchase completed"
+        if (typeof Scratch !== "undefined" && Scratch.vm) {
+          const targets = Scratch.vm.runtime.targets
+          targets.forEach((target) => {
+            const blocks = target.blocks._blocks
+            Object.values(blocks).forEach((block) => {
+              if (block.opcode === "secureStripePurchase_whenPurchaseCompleted") {
+                const blockPaymentLink = block.inputs.PAYMENT_LINK?.block
+                  ? blocks[block.inputs.PAYMENT_LINK.block]?.fields?.TEXT?.value || ""
+                  : block.inputs.PAYMENT_LINK?.shadow
+                    ? blocks[block.inputs.PAYMENT_LINK.shadow]?.fields?.TEXT?.value || ""
+                    : ""
+  
+                const blockProductId = this._extractProductIdFromLink(blockPaymentLink)
+  
+                // Si le Payment Link correspond ou si c'est vide (pour tous les achats)
+                if (!blockPaymentLink || blockProductId === productId || blockPaymentLink === paymentLink) {
+                  // Démarrer les blocs connectés à cet événement
+                  Scratch.vm.runtime.startHats("secureStripePurchase_whenPurchaseCompleted", {
+                    PAYMENT_LINK: blockPaymentLink,
+                  })
+                }
+              }
+            })
+          })
+        }
+      }
+  
+      // Bloc événement (ne fait rien, c'est juste un déclencheur)
+      whenPurchaseCompleted(args) {
+        // Ce bloc ne s'exécute pas directement, il est déclenché par _triggerPurchaseEvent
+        return true
+      }
+  
+      getLastPurchasedItem() {
+        return this.lastPurchasedItem || ""
       }
   
       async testConnection() {
@@ -171,14 +232,14 @@
           console.log("API Response:", { sessionId, url, productName })
   
           // Afficher la fenêtre de confirmation
-          this._showCheckoutConfirmation(productName || "Item", url, sessionId, productId)
+          this._showCheckoutConfirmation(productName || "Item", url, sessionId, productId, paymentLink)
         } catch (error) {
           console.error("❌ Purchase failed:", error)
           this._showNotification(`❌ Failed to start purchase: ${error.message}`, "error")
         }
       }
   
-      _showCheckoutConfirmation(itemName, checkoutUrl, sessionId, productId) {
+      _showCheckoutConfirmation(itemName, checkoutUrl, sessionId, productId, paymentLink) {
         const overlay = document.createElement("div")
         overlay.style.cssText = `
                   position: fixed;
@@ -288,7 +349,7 @@
           overlay.remove()
   
           // Commencer la vérification automatique
-          this._startSecurePurchaseCheck(itemName, productId, checkoutWindow)
+          this._startSecurePurchaseCheck(itemName, productId, checkoutWindow, paymentLink)
         })
   
         overlay.addEventListener("click", (e) => {
@@ -298,7 +359,7 @@
         })
       }
   
-      _startSecurePurchaseCheck(itemName, productId, checkoutWindow) {
+      _startSecurePurchaseCheck(itemName, productId, checkoutWindow, paymentLink) {
         this._showNotification(`🔄 Waiting for payment completion...`, "info")
   
         let checkCount = 0
@@ -328,6 +389,9 @@
                 this.purchasedItems.add(productId)
                 this._showNotification(`✅ ${itemName} purchased and verified!`, "success")
   
+                // ✅ DÉCLENCHER L'ÉVÉNEMENT D'ACHAT
+                this._triggerPurchaseEvent(productId, paymentLink)
+  
                 // Fermer la fenêtre de checkout si elle est encore ouverte
                 if (!checkoutWindow.closed) {
                   checkoutWindow.close()
@@ -346,7 +410,7 @@
           if (checkoutWindow.closed) {
             // Faire une dernière vérification
             setTimeout(() => {
-              this._verifyPurchaseOnReturn(productId)
+              this._verifyPurchaseOnReturn(productId, paymentLink)
             }, 2000)
   
             clearInterval(checkInterval)
@@ -368,7 +432,7 @@
         this.checkIntervals.set(productId, checkInterval)
       }
   
-      async _verifyPurchaseOnReturn(productId) {
+      async _verifyPurchaseOnReturn(productId, paymentLink) {
         try {
           const response = await fetch(`${this.serverURL}/check-purchase`, {
             method: "POST",
@@ -387,6 +451,9 @@
             if (purchased) {
               this.purchasedItems.add(productId)
               this._showNotification(`✅ Item verified and unlocked!`, "success")
+  
+              // ✅ DÉCLENCHER L'ÉVÉNEMENT D'ACHAT
+              this._triggerPurchaseEvent(productId, paymentLink)
             } else {
               this._showNotification(`ℹ️ Purchase not detected yet - Use 'Refresh purchases' to check again`, "info")
             }
