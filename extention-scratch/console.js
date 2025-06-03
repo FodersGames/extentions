@@ -14,6 +14,7 @@
                 debug: true
             };
             this.maxLogs = 1000;
+            this.executionDepth = 0;
             
             // Initialize console
             this._createConsole();
@@ -72,9 +73,14 @@
                     },
                     {
                         opcode: 'executeAndLog',
-                        blockType: Scratch.BlockType.COMMAND,
+                        blockType: Scratch.BlockType.LOOP,
                         text: '📊 Execute and Log Blocks',
-                        arguments: {}
+                        arguments: {
+                            SUBSTACK: {
+                                type: Scratch.ArgumentType.STRING,
+                                menu: 'SUBSTACK'
+                            }
+                        }
                     },
                     {
                         opcode: 'openConsole',
@@ -106,7 +112,13 @@
                         blockType: Scratch.BlockType.COMMAND,
                         text: '💾 Export Logs to File'
                     }
-                ]
+                ],
+                menus: {
+                    SUBSTACK: {
+                        acceptReporters: false,
+                        items: ['']
+                    }
+                }
             };
         }
 
@@ -316,7 +328,8 @@
                 message: message,
                 details: details,
                 timestamp: timestamp,
-                time: timestamp.toLocaleTimeString()
+                time: timestamp.toLocaleTimeString(),
+                depth: this.executionDepth
             };
 
             this.logs.push(log);
@@ -343,8 +356,13 @@
 
             const logElement = document.createElement('div');
             logElement.className = `log-entry log-${log.type}`;
+            
+            // Add indentation based on execution depth
+            const indentPx = log.depth * 20;
+            
             logElement.style.cssText = `
                 margin-bottom: 4px;
+                margin-left: ${indentPx}px;
                 padding: 8px 12px;
                 border-radius: 6px;
                 border-left: 4px solid ${this._getLogColor(log.type)};
@@ -364,6 +382,7 @@
                             <span style="font-size: 14px;">${icon}</span>
                             <span style="color: ${this._getLogColor(log.type)}; font-weight: bold; font-size: 11px;">${typeText}</span>
                             <span style="color: #7F8C8D; font-size: 10px;">#${log.id}</span>
+                            ${log.depth > 0 ? `<span style="color: #95A5A6; font-size: 10px;">depth:${log.depth}</span>` : ''}
                         </div>
                         <div style="color: #ECF0F1; font-size: 13px; word-break: break-word;">
                             ${this._escapeHtml(log.message)}
@@ -515,21 +534,30 @@
             }, 3000);
         }
 
-        // Block execution analyzer
-        _analyzeBlockExecution(util) {
-            try {
-                const target = util.target;
-                const thread = util.thread;
-                const blockId = thread.peekStack();
-                
-                if (!blockId) return null;
+        // Analyze blocks in the substack
+        _analyzeSubstackBlocks(util, substackName) {
+            const target = util.target;
+            const thread = util.thread;
+            const blockId = thread.peekStack();
+            
+            if (!blockId) return [];
 
-                const block = target.blocks.getBlock(blockId);
-                if (!block) return null;
+            const block = target.blocks.getBlock(blockId);
+            if (!block || !block.inputs[substackName]) return [];
+
+            const substackBlockId = block.inputs[substackName].block;
+            if (!substackBlockId) return [];
+
+            const analyzedBlocks = [];
+            let currentBlockId = substackBlockId;
+
+            while (currentBlockId) {
+                const currentBlock = target.blocks.getBlock(currentBlockId);
+                if (!currentBlock) break;
 
                 const blockInfo = {
-                    id: blockId,
-                    opcode: block.opcode,
+                    id: currentBlockId,
+                    opcode: currentBlock.opcode,
                     inputs: {},
                     fields: {},
                     target: target.getName(),
@@ -537,8 +565,8 @@
                 };
 
                 // Get inputs
-                if (block.inputs) {
-                    for (const [key, input] of Object.entries(block.inputs)) {
+                if (currentBlock.inputs) {
+                    for (const [key, input] of Object.entries(currentBlock.inputs)) {
                         if (input.block) {
                             const inputBlock = target.blocks.getBlock(input.block);
                             if (inputBlock) {
@@ -552,16 +580,17 @@
                 }
 
                 // Get fields
-                if (block.fields) {
-                    for (const [key, field] of Object.entries(block.fields)) {
+                if (currentBlock.fields) {
+                    for (const [key, field] of Object.entries(currentBlock.fields)) {
                         blockInfo.fields[key] = field.value;
                     }
                 }
 
-                return blockInfo;
-            } catch (error) {
-                return { error: error.message };
+                analyzedBlocks.push(blockInfo);
+                currentBlockId = currentBlock.next;
             }
+
+            return analyzedBlocks;
         }
 
         _getBlockValue(block, target) {
@@ -600,23 +629,51 @@
         }
 
         executeAndLog(args, util) {
-            const blockInfo = this._analyzeBlockExecution(util);
+            this.executionDepth++;
             
-            if (blockInfo) {
-                const message = `Executing block: ${blockInfo.opcode}`;
-                const details = {
-                    blockId: blockInfo.id,
-                    target: blockInfo.target,
-                    sprite: blockInfo.sprite,
-                    inputs: blockInfo.inputs,
-                    fields: blockInfo.fields,
-                    timestamp: new Date().toISOString()
-                };
-                
-                this._addLog('debug', message, details);
+            // Log start of execution block
+            this._addLog('info', `🚀 Starting execution block (depth: ${this.executionDepth})`);
+            
+            // Analyze the blocks in the substack
+            const analyzedBlocks = this._analyzeSubstackBlocks(util, 'SUBSTACK');
+            
+            if (analyzedBlocks.length > 0) {
+                this._addLog('debug', `Found ${analyzedBlocks.length} blocks to execute:`, {
+                    blocks: analyzedBlocks.map(block => ({
+                        opcode: block.opcode,
+                        inputs: block.inputs,
+                        fields: block.fields
+                    }))
+                });
+
+                // Log each block individually
+                analyzedBlocks.forEach((block, index) => {
+                    const message = `Block ${index + 1}: ${block.opcode}`;
+                    const details = {
+                        blockId: block.id,
+                        target: block.target,
+                        sprite: block.sprite,
+                        inputs: block.inputs,
+                        fields: block.fields,
+                        position: index + 1,
+                        totalBlocks: analyzedBlocks.length
+                    };
+                    
+                    this._addLog('debug', message, details);
+                });
             } else {
-                this._addLog('warning', 'Could not analyze block execution');
+                this._addLog('warning', 'No blocks found in execution block');
             }
+
+            // Execute the substack
+            if (util.startBranch) {
+                util.startBranch(1, false);
+            }
+
+            this.executionDepth--;
+            
+            // Log end of execution block
+            this._addLog('info', `✅ Execution block completed (depth: ${this.executionDepth + 1})`);
         }
 
         openConsole() {
@@ -654,7 +711,8 @@
                 type: log.type,
                 message: log.message,
                 details: log.details,
-                timestamp: log.timestamp.toISOString()
+                timestamp: log.timestamp.toISOString(),
+                depth: log.depth
             }));
 
             const dataStr = JSON.stringify(logData, null, 2);
