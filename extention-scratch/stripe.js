@@ -1,4 +1,4 @@
-// Extension Stripe FINALE - Version qui MARCHE
+// Extension Stripe FINALE - Version SANS BACKEND (pour éviter CORS)
 ;((Scratch) => {
     class StripeExtensionFinal {
       constructor(runtime) {
@@ -8,7 +8,7 @@
         this.sessionId = ""
         this.isChecking = false
   
-        console.log("🚀 Stripe Extension FINALE chargée")
+        console.log("🚀 Stripe Extension FINALE chargée (Mode Sans Backend)")
       }
   
       getInfo() {
@@ -141,7 +141,7 @@
             </div>
             <p style="margin: 0; color: #666; font-size: 14px;">
               Une nouvelle fenêtre va s'ouvrir.<br>
-              Fermez-la après votre paiement pour revenir ici.
+              <strong>Fermez-la après votre paiement pour revenir ici.</strong>
             </p>
           </div>
   
@@ -185,17 +185,12 @@
       openStripeWindow(paymentLink) {
         console.log("🔗 Ouverture de la fenêtre Stripe")
   
-        // Créer les URLs de retour
-        const baseUrl = window.location.origin + window.location.pathname
-        const successUrl = `${baseUrl}?stripe_success=true&session_id={CHECKOUT_SESSION_ID}&payment_link=${encodeURIComponent(paymentLink)}`
-        const cancelUrl = `${baseUrl}?stripe_cancelled=true&session_id={CHECKOUT_SESSION_ID}&payment_link=${encodeURIComponent(paymentLink)}`
-  
-        // Construire l'URL complète
-        const separator = paymentLink.includes("?") ? "&" : "?"
-        const fullUrl = `${paymentLink}${separator}success_url=${encodeURIComponent(successUrl)}&cancel_url=${encodeURIComponent(cancelUrl)}&client_reference_id=${this.sessionId}`
-  
-        // Ouvrir Stripe
-        const stripeWindow = window.open(fullUrl, "stripe_payment", "width=800,height=700,scrollbars=yes,resizable=yes")
+        // Ouvrir Stripe directement (sans URLs de retour pour éviter CORS)
+        const stripeWindow = window.open(
+          paymentLink,
+          "stripe_payment",
+          "width=800,height=700,scrollbars=yes,resizable=yes",
+        )
   
         if (!stripeWindow) {
           this.showNotification("❌ Veuillez autoriser les popups", "error")
@@ -213,12 +208,12 @@
         const checkClosed = setInterval(() => {
           if (stripeWindow.closed) {
             clearInterval(checkClosed)
-            console.log("🔄 Fenêtre Stripe fermée, vérification du paiement...")
+            console.log("🔄 Fenêtre Stripe fermée, demande de confirmation...")
   
-            // Attendre un peu puis vérifier
+            // Attendre un peu puis demander confirmation
             setTimeout(() => {
-              this.checkPaymentResult()
-            }, 2000)
+              this.askPaymentConfirmation()
+            }, 1000)
           }
         }, 1000)
   
@@ -232,68 +227,77 @@
         }, 600000)
       }
   
-      async checkPaymentResult() {
-        // Vérifier les paramètres d'URL d'abord
-        const urlParams = new URLSearchParams(window.location.search)
-        const stripeSuccess = urlParams.get("stripe_success")
-        const stripeCancelled = urlParams.get("stripe_cancelled")
-        const sessionId = urlParams.get("session_id")
-        const paymentLink = urlParams.get("payment_link")
+      askPaymentConfirmation() {
+        const overlay = document.createElement("div")
+        overlay.style.cssText = `
+          position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+          background: rgba(0, 0, 0, 0.9); display: flex; justify-content: center;
+          align-items: center; z-index: 999999; font-family: Arial, sans-serif;
+        `
   
-        if (stripeSuccess === "true" && sessionId) {
-          console.log("✅ Succès détecté dans l'URL")
-          await this.verifyPaymentWithBackend(sessionId, decodeURIComponent(paymentLink))
-          this.cleanUrl()
-          return
+        const modal = document.createElement("div")
+        modal.style.cssText = `
+          background: white; border-radius: 16px; padding: 32px; width: 450px;
+          max-width: 90vw; text-align: center; box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+        `
+  
+        modal.innerHTML = `
+          <div style="margin-bottom: 24px;">
+            <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #6772E5, #4F46E5); border-radius: 50%; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center;">
+              <span style="font-size: 32px; color: white;">❓</span>
+            </div>
+            <h2 style="margin: 0 0 12px 0; color: #1a1a1a; font-size: 28px; font-weight: 700;">Confirmation de Paiement</h2>
+            <p style="margin: 0 0 8px 0; color: #666; font-size: 16px;">Avez-vous effectué le paiement avec succès ?</p>
+            <p style="margin: 0; color: #999; font-size: 14px;">Session ID: ${this.sessionId}</p>
+          </div>
+  
+          <div style="background: #f8f9fa; border-radius: 12px; padding: 20px; margin: 24px 0;">
+            <p style="margin: 0; color: #666; font-size: 14px;">
+              Si vous avez payé avec succès, cliquez sur "Paiement Réussi".<br>
+              Sinon, cliquez sur "Paiement Échoué".
+            </p>
+          </div>
+  
+          <div style="display: flex; gap: 16px; margin-top: 32px;">
+            <button id="payment-failed" style="
+              flex: 1; padding: 16px 24px; border: 2px solid #dc3545;
+              background: white; color: #dc3545; border-radius: 12px;
+              font-size: 16px; font-weight: 600; cursor: pointer;
+            ">Paiement Échoué</button>
+            <button id="payment-success" style="
+              flex: 1; padding: 16px 24px; border: none;
+              background: linear-gradient(135deg, #28a745, #20c997);
+              color: white; border-radius: 12px; font-size: 16px;
+              font-weight: 600; cursor: pointer;
+            ">Paiement Réussi</button>
+          </div>
+        `
+  
+        overlay.appendChild(modal)
+        document.body.appendChild(overlay)
+  
+        // Event listeners
+        modal.querySelector("#payment-failed").onclick = () => {
+          overlay.remove()
+          this.handlePaymentError("Paiement non confirmé par l'utilisateur")
         }
   
-        if (stripeCancelled === "true") {
-          console.log("❌ Annulation détectée dans l'URL")
-          this.handlePaymentCancelled()
-          this.cleanUrl()
-          return
-        }
-  
-        // Si pas de paramètres, vérifier avec le backend quand même
-        console.log("🔍 Vérification avec le backend...")
-        await this.verifyPaymentWithBackend(this.sessionId, this.currentPaymentLink)
-      }
-  
-      async verifyPaymentWithBackend(sessionId, paymentLink) {
-        try {
-          this.showNotification("🔍 Vérification du paiement...", "info")
-  
-          console.log("🌐 Appel API:", "https://v0-scratch-extension-issue.vercel.app/api/verify-payment")
-          console.log("📦 Données:", { sessionId, paymentLink })
-  
-          const response = await fetch("https://v0-scratch-extension-issue.vercel.app/api/verify-payment", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              sessionId: sessionId,
-              paymentLink: paymentLink,
-            }),
+        modal.querySelector("#payment-success").onclick = () => {
+          overlay.remove()
+          this.handlePaymentSuccess({
+            sessionId: this.sessionId,
+            amount: "Montant non vérifié",
+            email: "Email non vérifié",
+            status: "confirmed_by_user",
+            timestamp: new Date().toISOString(),
           })
+        }
   
-          console.log("📡 Réponse API:", response.status, response.statusText)
-  
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+        overlay.onclick = (e) => {
+          if (e.target === overlay) {
+            overlay.remove()
+            this.handlePaymentError("Confirmation annulée")
           }
-  
-          const result = await response.json()
-          console.log("✅ Résultat API:", result)
-  
-          if (result.success) {
-            this.handlePaymentSuccess(result.payment)
-          } else {
-            this.handlePaymentError(result.error || "Vérification échouée")
-          }
-        } catch (error) {
-          console.error("❌ Erreur de vérification:", error)
-          this.handlePaymentError(`Erreur de connexion: ${error.message}`)
         }
       }
   
@@ -388,7 +392,8 @@
                 ? `
               <div style="margin-bottom: 12px;">
                 <strong>Montant:</strong> ${paymentData.amount || "N/A"}<br>
-                <strong>Email:</strong> ${paymentData.email || "N/A"}
+                <strong>Email:</strong> ${paymentData.email || "N/A"}<br>
+                <strong>Status:</strong> ${paymentData.status || "N/A"}
               </div>
             `
                 : ""
@@ -443,19 +448,6 @@
             notification.remove()
           }
         }, 5000)
-      }
-  
-      cleanUrl() {
-        try {
-          const url = new URL(window.location.href)
-          url.searchParams.delete("stripe_success")
-          url.searchParams.delete("stripe_cancelled")
-          url.searchParams.delete("session_id")
-          url.searchParams.delete("payment_link")
-          window.history.replaceState({}, document.title, url.href)
-        } catch (error) {
-          console.warn("Impossible de nettoyer l'URL:", error)
-        }
       }
     }
   
