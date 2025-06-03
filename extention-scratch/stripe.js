@@ -1,369 +1,402 @@
-// Extension Stripe PROPRE - Sans conflits
+// Extension Stripe FINALE - Version qui MARCHE
 ;((Scratch) => {
-    if (!Scratch || !Scratch.extensions) {
-      console.error("❌ Scratch not available")
-      return
-    }
-  
-    class CleanStripeExtension {
+    class StripeExtensionFinal {
       constructor(runtime) {
         this.runtime = runtime
-        this.purchasedItems = new Map()
-        this.userId = this.generateUserId()
-        this.lastPurchasedItem = ""
-        this.serverURL = "https://v0-scratch-extension-issue.vercel.app/api"
+        this.paymentStatus = "none"
+        this.currentPaymentLink = ""
+        this.sessionId = ""
+        this.isChecking = false
   
-        console.log("🚀 Clean Stripe Extension loaded")
-        console.log("👤 User ID:", this.userId)
+        console.log("🚀 Stripe Extension FINALE chargée")
       }
   
       getInfo() {
         return {
-          id: "cleanStripe",
-          name: "🔒 Clean Stripe",
-          color1: "#635BFF",
+          id: "stripeFinal",
+          name: "💳 Stripe Final",
+          color1: "#6772E5",
           color2: "#4F46E5",
           blocks: [
             {
-              opcode: "purchaseItem",
+              opcode: "openPayment",
               blockType: Scratch.BlockType.COMMAND,
-              text: "💳 Purchase [ITEM_ID]",
+              text: "💳 Open payment [PAYMENT_LINK]",
               arguments: {
-                ITEM_ID: {
+                PAYMENT_LINK: {
                   type: Scratch.ArgumentType.STRING,
-                  defaultValue: "premium_coins",
+                  defaultValue: "https://buy.stripe.com/test_...",
                 },
               },
             },
             {
-              opcode: "whenPurchaseComplete",
+              opcode: "whenPaymentSuccess",
               blockType: Scratch.BlockType.HAT,
-              text: "🎉 When purchased [ITEM_ID]",
+              text: "✅ When payment succeeded for [PAYMENT_LINK]",
               arguments: {
-                ITEM_ID: {
+                PAYMENT_LINK: {
                   type: Scratch.ArgumentType.STRING,
-                  defaultValue: "premium_coins",
+                  defaultValue: "https://buy.stripe.com/test_...",
                 },
               },
             },
             {
-              opcode: "hasPurchased",
-              blockType: Scratch.BlockType.BOOLEAN,
-              text: "Has purchased [ITEM_ID]?",
+              opcode: "whenPaymentFailed",
+              blockType: Scratch.BlockType.HAT,
+              text: "❌ When payment failed for [PAYMENT_LINK]",
               arguments: {
-                ITEM_ID: {
+                PAYMENT_LINK: {
                   type: Scratch.ArgumentType.STRING,
-                  defaultValue: "premium_coins",
+                  defaultValue: "https://buy.stripe.com/test_...",
                 },
               },
             },
             {
-              opcode: "getPurchaseCount",
+              opcode: "getPaymentStatus",
               blockType: Scratch.BlockType.REPORTER,
-              text: "Purchase count [ITEM_ID]",
-              arguments: {
-                ITEM_ID: {
-                  type: Scratch.ArgumentType.STRING,
-                  defaultValue: "premium_coins",
-                },
-              },
+              text: "payment status",
             },
             {
-              opcode: "simulatePurchase",
-              blockType: Scratch.BlockType.COMMAND,
-              text: "🧪 TEST: Buy [ITEM_ID]",
-              arguments: {
-                ITEM_ID: {
-                  type: Scratch.ArgumentType.STRING,
-                  defaultValue: "premium_coins",
-                },
-              },
-            },
-            {
-              opcode: "getLastPurchased",
+              opcode: "getSessionId",
               blockType: Scratch.BlockType.REPORTER,
-              text: "Last purchased item",
-            },
-            {
-              opcode: "showStatus",
-              blockType: Scratch.BlockType.COMMAND,
-              text: "📊 Show purchase status",
-            },
-            {
-              opcode: "getUserId",
-              blockType: Scratch.BlockType.REPORTER,
-              text: "User ID",
+              text: "session ID",
             },
           ],
         }
       }
   
-      // === BLOCS PRINCIPAUX ===
+      // === BLOC PRINCIPAL ===
+      openPayment(args) {
+        const paymentLink = args.PAYMENT_LINK.trim()
   
-      purchaseItem(args) {
-        const itemId = args.ITEM_ID || "unknown"
-        console.log("💳 Purchase requested:", itemId)
+        if (!paymentLink || !paymentLink.includes("stripe.com")) {
+          this.showNotification("❌ Lien Stripe invalide", "error")
+          return
+        }
   
-        this.showPurchaseDialog(itemId)
+        console.log("💳 Ouverture du paiement:", paymentLink)
+  
+        this.currentPaymentLink = paymentLink
+        this.paymentStatus = "pending"
+        this.sessionId = this.generateSessionId()
+  
+        // Afficher l'interface de redirection
+        this.showRedirectInterface(paymentLink)
       }
   
-      whenPurchaseComplete(args) {
-        const itemId = args.ITEM_ID || ""
-        return this.lastPurchasedItem === itemId
+      // === ÉVÉNEMENTS HAT ===
+      whenPaymentSuccess(args) {
+        const link = args.PAYMENT_LINK
+        return this.paymentStatus === "success" && this.currentPaymentLink === link
       }
   
-      hasPurchased(args) {
-        const itemId = args.ITEM_ID || ""
-        return this.purchasedItems.has(itemId) && this.purchasedItems.get(itemId) > 0
+      whenPaymentFailed(args) {
+        const link = args.PAYMENT_LINK
+        return this.paymentStatus === "failed" && this.currentPaymentLink === link
       }
   
-      getPurchaseCount(args) {
-        const itemId = args.ITEM_ID || ""
-        return this.purchasedItems.get(itemId) || 0
+      // === REPORTERS ===
+      getPaymentStatus() {
+        return this.paymentStatus
       }
   
-      simulatePurchase(args) {
-        const itemId = args.ITEM_ID || "test_item"
-        console.log("🧪 Simulating purchase:", itemId)
-  
-        this.addPurchase(itemId)
-        this.triggerPurchaseEvent(itemId)
-        this.showNotification(`✅ TEST: Purchased ${itemId}`, "success")
-      }
-  
-      getLastPurchased() {
-        return this.lastPurchasedItem
-      }
-  
-      showStatus() {
-        this.createStatusDialog()
-      }
-  
-      getUserId() {
-        return this.userId
+      getSessionId() {
+        return this.sessionId
       }
   
       // === MÉTHODES INTERNES ===
   
-      generateUserId() {
-        let userId = null
-        try {
-          userId = localStorage.getItem("cleanStripeUserId")
-          if (!userId) {
-            userId = "user_" + Math.random().toString(36).substr(2, 12)
-            localStorage.setItem("cleanStripeUserId", userId)
-          }
-        } catch (e) {
-          userId = "user_" + Math.random().toString(36).substr(2, 12)
+      generateSessionId() {
+        return "scratch_" + Math.random().toString(36).substr(2, 9) + "_" + Date.now()
+      }
+  
+      showRedirectInterface(paymentLink) {
+        const overlay = document.createElement("div")
+        overlay.style.cssText = `
+          position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+          background: rgba(0, 0, 0, 0.9); display: flex; justify-content: center;
+          align-items: center; z-index: 999999; font-family: Arial, sans-serif;
+        `
+  
+        const modal = document.createElement("div")
+        modal.style.cssText = `
+          background: white; border-radius: 16px; padding: 32px; width: 450px;
+          max-width: 90vw; text-align: center; box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+        `
+  
+        modal.innerHTML = `
+          <div style="margin-bottom: 24px;">
+            <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #6772E5, #4F46E5); border-radius: 50%; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center;">
+              <span style="font-size: 32px; color: white;">💳</span>
+            </div>
+            <h2 style="margin: 0 0 12px 0; color: #1a1a1a; font-size: 28px; font-weight: 700;">Redirection Stripe</h2>
+            <p style="margin: 0 0 8px 0; color: #666; font-size: 16px;">Vous allez être redirigé vers Stripe</p>
+            <p style="margin: 0; color: #999; font-size: 14px;">Session ID: ${this.sessionId}</p>
+          </div>
+  
+          <div style="background: #f8f9fa; border-radius: 12px; padding: 20px; margin: 24px 0;">
+            <div style="display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 12px;">
+              <span style="font-size: 20px;">🔒</span>
+              <span style="color: #28a745; font-weight: 700; font-size: 16px;">Paiement sécurisé par Stripe</span>
+            </div>
+            <p style="margin: 0; color: #666; font-size: 14px;">
+              Une nouvelle fenêtre va s'ouvrir.<br>
+              Fermez-la après votre paiement pour revenir ici.
+            </p>
+          </div>
+  
+          <div style="display: flex; gap: 16px; margin-top: 32px;">
+            <button id="cancel-payment" style="
+              flex: 1; padding: 16px 24px; border: 2px solid #e1e5e9;
+              background: white; color: #666; border-radius: 12px;
+              font-size: 16px; font-weight: 600; cursor: pointer;
+            ">Annuler</button>
+            <button id="continue-payment" style="
+              flex: 2; padding: 16px 24px; border: none;
+              background: linear-gradient(135deg, #6772E5, #4F46E5);
+              color: white; border-radius: 12px; font-size: 16px;
+              font-weight: 600; cursor: pointer;
+            ">Continuer vers Stripe</button>
+          </div>
+        `
+  
+        overlay.appendChild(modal)
+        document.body.appendChild(overlay)
+  
+        // Event listeners
+        modal.querySelector("#cancel-payment").onclick = () => {
+          overlay.remove()
+          this.handlePaymentCancelled()
         }
-        return userId
+  
+        modal.querySelector("#continue-payment").onclick = () => {
+          overlay.remove()
+          this.openStripeWindow(paymentLink)
+        }
+  
+        overlay.onclick = (e) => {
+          if (e.target === overlay) {
+            overlay.remove()
+            this.handlePaymentCancelled()
+          }
+        }
       }
   
-      addPurchase(itemId) {
-        const current = this.purchasedItems.get(itemId) || 0
-        this.purchasedItems.set(itemId, current + 1)
+      openStripeWindow(paymentLink) {
+        console.log("🔗 Ouverture de la fenêtre Stripe")
+  
+        // Créer les URLs de retour
+        const baseUrl = window.location.origin + window.location.pathname
+        const successUrl = `${baseUrl}?stripe_success=true&session_id={CHECKOUT_SESSION_ID}&payment_link=${encodeURIComponent(paymentLink)}`
+        const cancelUrl = `${baseUrl}?stripe_cancelled=true&session_id={CHECKOUT_SESSION_ID}&payment_link=${encodeURIComponent(paymentLink)}`
+  
+        // Construire l'URL complète
+        const separator = paymentLink.includes("?") ? "&" : "?"
+        const fullUrl = `${paymentLink}${separator}success_url=${encodeURIComponent(successUrl)}&cancel_url=${encodeURIComponent(cancelUrl)}&client_reference_id=${this.sessionId}`
+  
+        // Ouvrir Stripe
+        const stripeWindow = window.open(fullUrl, "stripe_payment", "width=800,height=700,scrollbars=yes,resizable=yes")
+  
+        if (!stripeWindow) {
+          this.showNotification("❌ Veuillez autoriser les popups", "error")
+          this.handlePaymentCancelled()
+          return
+        }
+  
+        this.showNotification("🔄 Fenêtre Stripe ouverte...", "info")
+  
+        // Surveiller la fermeture de la fenêtre
+        this.monitorStripeWindow(stripeWindow)
       }
   
-      triggerPurchaseEvent(itemId) {
-        this.lastPurchasedItem = itemId
-        console.log("🎉 Triggering purchase event for:", itemId)
+      monitorStripeWindow(stripeWindow) {
+        const checkClosed = setInterval(() => {
+          if (stripeWindow.closed) {
+            clearInterval(checkClosed)
+            console.log("🔄 Fenêtre Stripe fermée, vérification du paiement...")
   
+            // Attendre un peu puis vérifier
+            setTimeout(() => {
+              this.checkPaymentResult()
+            }, 2000)
+          }
+        }, 1000)
+  
+        // Timeout après 10 minutes
+        setTimeout(() => {
+          if (!stripeWindow.closed) {
+            clearInterval(checkClosed)
+            stripeWindow.close()
+            this.handlePaymentTimeout()
+          }
+        }, 600000)
+      }
+  
+      async checkPaymentResult() {
+        // Vérifier les paramètres d'URL d'abord
+        const urlParams = new URLSearchParams(window.location.search)
+        const stripeSuccess = urlParams.get("stripe_success")
+        const stripeCancelled = urlParams.get("stripe_cancelled")
+        const sessionId = urlParams.get("session_id")
+        const paymentLink = urlParams.get("payment_link")
+  
+        if (stripeSuccess === "true" && sessionId) {
+          console.log("✅ Succès détecté dans l'URL")
+          await this.verifyPaymentWithBackend(sessionId, decodeURIComponent(paymentLink))
+          this.cleanUrl()
+          return
+        }
+  
+        if (stripeCancelled === "true") {
+          console.log("❌ Annulation détectée dans l'URL")
+          this.handlePaymentCancelled()
+          this.cleanUrl()
+          return
+        }
+  
+        // Si pas de paramètres, vérifier avec le backend quand même
+        console.log("🔍 Vérification avec le backend...")
+        await this.verifyPaymentWithBackend(this.sessionId, this.currentPaymentLink)
+      }
+  
+      async verifyPaymentWithBackend(sessionId, paymentLink) {
+        try {
+          this.showNotification("🔍 Vérification du paiement...", "info")
+  
+          const response = await fetch("/api/verify-payment", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              sessionId: sessionId,
+              paymentLink: paymentLink,
+            }),
+          })
+  
+          const result = await response.json()
+  
+          if (result.success) {
+            this.handlePaymentSuccess(result.payment)
+          } else {
+            this.handlePaymentError(result.error || "Vérification échouée")
+          }
+        } catch (error) {
+          console.error("❌ Erreur de vérification:", error)
+          this.handlePaymentError("Erreur de connexion au serveur")
+        }
+      }
+  
+      handlePaymentSuccess(paymentData) {
+        this.paymentStatus = "success"
+        console.log("🎉 Paiement réussi!")
+  
+        // Afficher popup de succès
+        this.showSuccessPopup(paymentData)
+  
+        // Déclencher l'événement HAT
         if (this.runtime) {
-          this.runtime.startHats("cleanStripe_whenPurchaseComplete", {
-            ITEM_ID: itemId,
+          this.runtime.startHats("stripeFinal_whenPaymentSuccess", {
+            PAYMENT_LINK: this.currentPaymentLink,
           })
         }
       }
   
-      showPurchaseDialog(itemId) {
-        const overlay = this.createElement("div", {
-          position: "fixed",
-          top: "0",
-          left: "0",
-          width: "100%",
-          height: "100%",
-          background: "rgba(0, 0, 0, 0.8)",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          zIndex: "999999",
-          fontFamily: "Arial, sans-serif",
-        })
+      handlePaymentError(error) {
+        this.paymentStatus = "failed"
+        console.log("❌ Paiement échoué:", error)
   
-        const dialog = this.createElement("div", {
-          background: "white",
-          borderRadius: "12px",
-          padding: "24px",
-          width: "400px",
-          maxWidth: "90vw",
-          textAlign: "center",
-          boxShadow: "0 20px 40px rgba(0, 0, 0, 0.3)",
-        })
+        // Afficher notification d'erreur
+        this.showNotification(`❌ Erreur: ${error}`, "error")
   
-        dialog.innerHTML = `
-          <div style="margin-bottom: 20px;">
-            <div style="width: 60px; height: 60px; background: #635BFF; border-radius: 50%; margin: 0 auto 16px; display: flex; align-items: center; justify-content: center;">
-              <span style="font-size: 24px; color: white;">🔒</span>
-            </div>
-            <h2 style="margin: 0 0 8px 0; color: #1a1a1a;">Purchase ${itemId}</h2>
-            <p style="margin: 0; color: #666; font-size: 14px;">Secure payment with Stripe</p>
-          </div>
+        // Déclencher l'événement HAT
+        if (this.runtime) {
+          this.runtime.startHats("stripeFinal_whenPaymentFailed", {
+            PAYMENT_LINK: this.currentPaymentLink,
+          })
+        }
+      }
   
-          <div style="display: flex; gap: 12px; margin-top: 24px;">
-            <button id="cancel-btn" style="
-              flex: 1;
-              padding: 12px;
-              border: 2px solid #ddd;
-              background: white;
-              color: #666;
-              border-radius: 8px;
-              cursor: pointer;
-              font-size: 14px;
-            ">Cancel</button>
-            <button id="purchase-btn" style="
-              flex: 2;
-              padding: 12px;
-              border: none;
-              background: #635BFF;
-              color: white;
-              border-radius: 8px;
-              cursor: pointer;
-              font-size: 14px;
-            ">Continue to Stripe</button>
-          </div>
+      handlePaymentCancelled() {
+        this.paymentStatus = "failed"
+        console.log("❌ Paiement annulé")
+  
+        this.showNotification("❌ Paiement annulé", "warning")
+  
+        // Déclencher l'événement HAT
+        if (this.runtime) {
+          this.runtime.startHats("stripeFinal_whenPaymentFailed", {
+            PAYMENT_LINK: this.currentPaymentLink,
+          })
+        }
+      }
+  
+      handlePaymentTimeout() {
+        this.paymentStatus = "failed"
+        console.log("⏰ Timeout du paiement")
+  
+        this.showNotification("⏰ Timeout - Paiement trop long", "warning")
+  
+        // Déclencher l'événement HAT
+        if (this.runtime) {
+          this.runtime.startHats("stripeFinal_whenPaymentFailed", {
+            PAYMENT_LINK: this.currentPaymentLink,
+          })
+        }
+      }
+  
+      showSuccessPopup(paymentData) {
+        const overlay = document.createElement("div")
+        overlay.style.cssText = `
+          position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+          background: rgba(0, 0, 0, 0.9); display: flex; justify-content: center;
+          align-items: center; z-index: 999999; font-family: Arial, sans-serif;
         `
   
-        overlay.appendChild(dialog)
-        document.body.appendChild(overlay)
+        const modal = document.createElement("div")
+        modal.style.cssText = `
+          background: white; border-radius: 16px; padding: 32px; width: 450px;
+          max-width: 90vw; text-align: center; box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+        `
   
-        // Event listeners
-        dialog.querySelector("#cancel-btn").onclick = () => {
-          overlay.remove()
-        }
-  
-        dialog.querySelector("#purchase-btn").onclick = () => {
-          overlay.remove()
-          this.openStripePayment(itemId)
-        }
-  
-        overlay.onclick = (e) => {
-          if (e.target === overlay) {
-            overlay.remove()
-          }
-        }
-      }
-  
-      openStripePayment(itemId) {
-        console.log("🔗 Opening Stripe payment for:", itemId)
-  
-        // Simuler l'ouverture de Stripe
-        const stripeUrl = `https://buy.stripe.com/test_${itemId}`
-  
-        try {
-          const paymentWindow = window.open(stripeUrl, "stripe_payment", "width=800,height=600,scrollbars=yes")
-  
-          if (!paymentWindow) {
-            this.showNotification("❌ Please allow popups", "error")
-            return
-          }
-  
-          this.showNotification("🔄 Payment window opened...", "info")
-  
-          // Simuler un retour après 5 secondes pour test
-          setTimeout(() => {
-            if (!paymentWindow.closed) {
-              paymentWindow.close()
-            }
-            this.simulatePaymentReturn(itemId)
-          }, 5000)
-        } catch (error) {
-          console.error("❌ Error opening payment:", error)
-          this.showNotification("❌ Error opening payment", "error")
-        }
-      }
-  
-      simulatePaymentReturn(itemId) {
-        this.addPurchase(itemId)
-        this.triggerPurchaseEvent(itemId)
-        this.showNotification(`✅ Payment completed for ${itemId}!`, "success")
-      }
-  
-      createStatusDialog() {
-        const overlay = this.createElement("div", {
-          position: "fixed",
-          top: "0",
-          left: "0",
-          width: "100%",
-          height: "100%",
-          background: "rgba(0, 0, 0, 0.8)",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          zIndex: "999999",
-          fontFamily: "Arial, sans-serif",
-        })
-  
-        const dialog = this.createElement("div", {
-          background: "white",
-          borderRadius: "12px",
-          padding: "24px",
-          width: "450px",
-          maxWidth: "90vw",
-          maxHeight: "80vh",
-          overflowY: "auto",
-          boxShadow: "0 20px 40px rgba(0, 0, 0, 0.3)",
-        })
-  
-        const purchases = Array.from(this.purchasedItems.entries())
-        const total = Array.from(this.purchasedItems.values()).reduce((sum, count) => sum + count, 0)
-  
-        dialog.innerHTML = `
-          <div style="text-align: center; margin-bottom: 24px;">
-            <h2 style="margin: 0 0 8px 0; color: #1a1a1a;">Purchase Status</h2>
-            <p style="margin: 0; color: #666; font-size: 14px;">User: ${this.userId}</p>
-          </div>
-  
-          <div style="background: #f8f9fa; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
-            <div style="font-size: 14px; color: #666;">
-              Total purchases: <strong style="color: #28a745;">${total}</strong><br>
-              Unique items: <strong style="color: #2196f3;">${purchases.length}</strong>
+        modal.innerHTML = `
+          <div style="margin-bottom: 24px;">
+            <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #28a745, #20c997); border-radius: 50%; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center;">
+              <span style="font-size: 32px; color: white;">✅</span>
             </div>
+            <h2 style="margin: 0 0 12px 0; color: #1a1a1a; font-size: 28px; font-weight: 700;">Achat Effectué !</h2>
+            <p style="margin: 0 0 8px 0; color: #28a745; font-size: 16px; font-weight: 600;">Paiement confirmé</p>
           </div>
   
-          <div style="margin-bottom: 20px;">
-            <h3 style="margin: 0 0 12px 0; font-size: 16px;">Purchased Items:</h3>
+          <div style="background: #f8f9fa; border-radius: 12px; padding: 20px; margin: 24px 0; text-align: left;">
+            <div style="margin-bottom: 12px;">
+              <strong>Session ID:</strong><br>
+              <code style="background: #e9ecef; padding: 4px 8px; border-radius: 4px; font-size: 12px;">${this.sessionId}</code>
+            </div>
             ${
-              purchases.length === 0
-                ? '<p style="text-align: center; color: #666; font-style: italic;">No purchases yet</p>'
-                : purchases
-                    .map(
-                      ([item, count]) => `
-                <div style="display: flex; justify-content: space-between; padding: 8px; background: #e8f5e8; border-radius: 6px; margin-bottom: 6px;">
-                  <span style="font-family: monospace;">${item}</span>
-                  <span style="color: #2196f3;">x${count}</span>
-                </div>
-              `,
-                    )
-                    .join("")
+              paymentData
+                ? `
+              <div style="margin-bottom: 12px;">
+                <strong>Montant:</strong> ${paymentData.amount || "N/A"}<br>
+                <strong>Email:</strong> ${paymentData.email || "N/A"}
+              </div>
+            `
+                : ""
             }
           </div>
   
-          <button id="close-status" style="
-            width: 100%;
-            padding: 12px;
-            border: none;
-            background: #635BFF;
-            color: white;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 14px;
-          ">Close</button>
+          <button id="close-success" style="
+            width: 100%; padding: 16px 24px; border: none;
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white; border-radius: 12px; font-size: 16px;
+            font-weight: 600; cursor: pointer;
+          ">Continuer</button>
         `
   
-        overlay.appendChild(dialog)
+        overlay.appendChild(modal)
         document.body.appendChild(overlay)
   
-        dialog.querySelector("#close-status").onclick = () => {
+        modal.querySelector("#close-success").onclick = () => {
           overlay.remove()
         }
   
@@ -372,14 +405,6 @@
             overlay.remove()
           }
         }
-      }
-  
-      createElement(tag, styles) {
-        const element = document.createElement(tag)
-        if (styles) {
-          Object.assign(element.style, styles)
-        }
-        return element
       }
   
       showNotification(message, type) {
@@ -390,20 +415,15 @@
           info: "#17a2b8",
         }
   
-        const notification = this.createElement("div", {
-          position: "fixed",
-          top: "20px",
-          right: "20px",
-          background: colors[type] || colors.info,
-          color: "white",
-          padding: "12px 20px",
-          borderRadius: "8px",
-          boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
-          zIndex: "1000000",
-          fontFamily: "Arial, sans-serif",
-          fontSize: "14px",
-          maxWidth: "300px",
-        })
+        const notification = document.createElement("div")
+        notification.style.cssText = `
+          position: fixed; top: 20px; right: 20px;
+          background: ${colors[type] || colors.info}; color: white;
+          padding: 16px 24px; border-radius: 12px;
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+          z-index: 1000000; font-family: Arial, sans-serif;
+          font-size: 16px; font-weight: 600; max-width: 350px;
+        `
   
         notification.textContent = message
         document.body.appendChild(notification)
@@ -412,16 +432,24 @@
           if (notification.parentNode) {
             notification.remove()
           }
-        }, 4000)
+        }, 5000)
+      }
+  
+      cleanUrl() {
+        try {
+          const url = new URL(window.location.href)
+          url.searchParams.delete("stripe_success")
+          url.searchParams.delete("stripe_cancelled")
+          url.searchParams.delete("session_id")
+          url.searchParams.delete("payment_link")
+          window.history.replaceState({}, document.title, url.href)
+        } catch (error) {
+          console.warn("Impossible de nettoyer l'URL:", error)
+        }
       }
     }
   
     // Enregistrer l'extension
-    try {
-      Scratch.extensions.register(new CleanStripeExtension())
-      console.log("✅ Extension registered successfully")
-    } catch (error) {
-      console.error("❌ Failed to register extension:", error)
-    }
-  })(window.Scratch)
+    Scratch.extensions.register(new StripeExtensionFinal())
+  })(Scratch)
   
