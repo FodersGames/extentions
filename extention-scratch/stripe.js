@@ -263,7 +263,7 @@
         try {
           this.showNotification("🔍 Vérification du paiement...", "info")
   
-          const response = await fetch("/api/verify-payment", {
+          const response = await fetch("https://v0-scratch-extension-issue.vercel.app/api/verify-payment", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
