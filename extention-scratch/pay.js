@@ -39,12 +39,24 @@
                 },
               },
             },
-            // ✅ NOUVEAU BLOC ÉVÉNEMENT
+            // ✅ BLOC ÉVÉNEMENT
             {
               opcode: "whenPurchaseCompleted",
               blockType: Scratch.BlockType.EVENT,
               text: "🎉 When purchase completed [PAYMENT_LINK]",
               isEdgeActivated: false,
+              arguments: {
+                PAYMENT_LINK: {
+                  type: Scratch.ArgumentType.STRING,
+                  defaultValue: "https://buy.stripe.com/test_...",
+                },
+              },
+            },
+            // ✅ BLOC DE TEST TEMPORAIRE
+            {
+              opcode: "simulatePurchase",
+              blockType: Scratch.BlockType.COMMAND,
+              text: "🧪 TEST: Simulate purchase [PAYMENT_LINK]",
               arguments: {
                 PAYMENT_LINK: {
                   type: Scratch.ArgumentType.STRING,
@@ -101,10 +113,31 @@
         return match ? match[2] : paymentLink
       }
   
-      // ✅ NOUVELLE FONCTION POUR DÉCLENCHER L'ÉVÉNEMENT
+      // ✅ BLOC DE TEST POUR SIMULER UN ACHAT
+      simulatePurchase(args) {
+        const paymentLink = args.PAYMENT_LINK.trim()
+  
+        if (!paymentLink || !paymentLink.includes("buy.stripe.com")) {
+          this._showNotification("❌ Invalid Stripe Payment Link", "error")
+          return
+        }
+  
+        const productId = this._extractProductIdFromLink(paymentLink)
+  
+        // Simuler l'achat
+        this.purchasedItems.add(productId)
+        this._showNotification(`🧪 TEST: Purchase simulated for ${productId}`, "info")
+  
+        // Déclencher l'événement
+        this._triggerPurchaseEvent(productId, paymentLink)
+      }
+  
+      // ✅ FONCTION POUR DÉCLENCHER L'ÉVÉNEMENT
       _triggerPurchaseEvent(productId, paymentLink) {
         this.lastPurchasedItem = productId
         this.lastPurchasedLink = paymentLink
+  
+        console.log("🎉 Triggering purchase event for:", productId)
   
         // Déclencher l'événement pour tous les blocs "When purchase completed"
         if (typeof Scratch !== "undefined" && Scratch.vm) {
@@ -121,8 +154,12 @@
   
                 const blockProductId = this._extractProductIdFromLink(blockPaymentLink)
   
+                console.log("Checking event block:", { blockPaymentLink, blockProductId, currentProductId: productId })
+  
                 // Si le Payment Link correspond ou si c'est vide (pour tous les achats)
                 if (!blockPaymentLink || blockProductId === productId || blockPaymentLink === paymentLink) {
+                  console.log("✅ Triggering event for block:", block.id)
+  
                   // Démarrer les blocs connectés à cet événement
                   Scratch.vm.runtime.startHats("secureStripePurchase_whenPurchaseCompleted", {
                     PAYMENT_LINK: blockPaymentLink,
