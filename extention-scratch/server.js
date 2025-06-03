@@ -1,149 +1,126 @@
 ;((Scratch) => {
-    class AdminDashboardExtension {
+    class SimpleAdminExtension {
       constructor() {
-        this.playerID = this._generatePlayerID()
         this.playerName = ""
-        this.serverURL = "https://v0-scratch-extension-issue.vercel.app/api" // ✅ URL correcte
-        this.variables = {}
+        this.serverURL = "https://v0-scratch-extension-issue.vercel.app/api"
         this.syncInterval = null
-        this.lastSyncTime = 0
         this.isConnected = false
-        this.variableChangeEvents = {}
+        this.lastVariables = {}
       }
   
       getInfo() {
         return {
-          id: "adminDashboard",
-          name: "Admin Dashboard",
-          color1: "#4CAF50",
-          color2: "#388E3C",
+          id: "simpleAdmin",
+          name: "Simple Admin",
+          color1: "#FF6B6B",
+          color2: "#FF5252",
           blocks: [
             {
-              opcode: "connect",
+              opcode: "connectPlayer",
               blockType: Scratch.BlockType.COMMAND,
-              text: "Connect to dashboard with name [NAME]",
+              text: "Connect player [NAME] to admin dashboard",
               arguments: {
                 NAME: {
                   type: Scratch.ArgumentType.STRING,
-                  defaultValue: "Player",
-                },
-              },
-            },
-            {
-              opcode: "disconnect",
-              blockType: Scratch.BlockType.COMMAND,
-              text: "Disconnect from dashboard",
-            },
-            {
-              opcode: "registerVariable",
-              blockType: Scratch.BlockType.COMMAND,
-              text: "Register variable [VAR_NAME] with value [VALUE]",
-              arguments: {
-                VAR_NAME: {
-                  type: Scratch.ArgumentType.STRING,
-                  defaultValue: "score",
-                },
-                VALUE: {
-                  type: Scratch.ArgumentType.STRING,
-                  defaultValue: "0",
-                },
-              },
-            },
-            {
-              opcode: "updateVariable",
-              blockType: Scratch.BlockType.COMMAND,
-              text: "Update variable [VAR_NAME] with value [VALUE]",
-              arguments: {
-                VAR_NAME: {
-                  type: Scratch.ArgumentType.STRING,
-                  defaultValue: "score",
-                },
-                VALUE: {
-                  type: Scratch.ArgumentType.STRING,
-                  defaultValue: "0",
-                },
-              },
-            },
-            {
-              opcode: "getVariable",
-              blockType: Scratch.BlockType.REPORTER,
-              text: "Get variable [VAR_NAME] from dashboard",
-              arguments: {
-                VAR_NAME: {
-                  type: Scratch.ArgumentType.STRING,
-                  defaultValue: "score",
+                  defaultValue: "Player1",
                 },
               },
             },
             {
               opcode: "isConnected",
               blockType: Scratch.BlockType.BOOLEAN,
-              text: "Is connected to dashboard?",
+              text: "Connected to admin?",
             },
             {
-              opcode: "onVariableChanged",
-              blockType: Scratch.BlockType.HAT,
-              text: "When variable [VAR_NAME] changed by admin",
-              arguments: {
-                VAR_NAME: {
-                  type: Scratch.ArgumentType.STRING,
-                  defaultValue: "score",
-                },
-              },
-            },
-            {
-              opcode: "getPlayerID",
-              blockType: Scratch.BlockType.REPORTER,
-              text: "Player ID",
-            },
-            {
-              opcode: "getAllVariables",
-              blockType: Scratch.BlockType.REPORTER,
-              text: "All variables as JSON",
+              opcode: "disconnect",
+              blockType: Scratch.BlockType.COMMAND,
+              text: "Disconnect from admin",
             },
           ],
         }
       }
   
-      _generatePlayerID() {
-        const storedID = localStorage.getItem("scratchAdminDashboardPlayerID")
-        if (storedID) return storedID
+      // Get all variables from Scratch project
+      _getAllVariables() {
+        const variables = {}
   
-        const newID = "player_" + Math.random().toString(36).substr(2, 9)
-        localStorage.setItem("scratchAdminDashboardPlayerID", newID)
-        return newID
-      }
+        try {
+          // Get all variables from the Scratch runtime
+          const stage = Scratch.vm.runtime.getTargetForStage()
+          const sprites = Scratch.vm.runtime.targets
   
-      _startSync() {
-        if (this.syncInterval) clearInterval(this.syncInterval)
+          // Get stage variables
+          if (stage && stage.variables) {
+            for (const [id, variable] of Object.entries(stage.variables)) {
+              variables[variable.name] = variable.value
+            }
+          }
   
-        this.syncInterval = setInterval(() => {
-          this._syncWithServer()
-        }, 3000) // Sync every 3 seconds
+          // Get sprite variables
+          sprites.forEach((target) => {
+            if (target.variables) {
+              for (const [id, variable] of Object.entries(target.variables)) {
+                variables[variable.name] = variable.value
+              }
+            }
+          })
   
-        this._syncWithServer()
-      }
-  
-      _stopSync() {
-        if (this.syncInterval) {
-          clearInterval(this.syncInterval)
-          this.syncInterval = null
+          console.log("Extracted variables:", variables)
+        } catch (error) {
+          console.error("Error extracting variables:", error)
         }
-        this.isConnected = false
+  
+        return variables
+      }
+  
+      // Apply variables back to Scratch
+      _applyVariables(newVariables) {
+        try {
+          const stage = Scratch.vm.runtime.getTargetForStage()
+          const sprites = Scratch.vm.runtime.targets
+  
+          // Apply to stage variables
+          if (stage && stage.variables) {
+            for (const [id, variable] of Object.entries(stage.variables)) {
+              if (newVariables.hasOwnProperty(variable.name)) {
+                variable.value = newVariables[variable.name]
+                console.log(`Updated ${variable.name} to ${newVariables[variable.name]}`)
+              }
+            }
+          }
+  
+          // Apply to sprite variables
+          sprites.forEach((target) => {
+            if (target.variables) {
+              for (const [id, variable] of Object.entries(target.variables)) {
+                if (newVariables.hasOwnProperty(variable.name)) {
+                  variable.value = newVariables[variable.name]
+                  console.log(`Updated ${variable.name} to ${newVariables[variable.name]}`)
+                }
+              }
+            }
+          })
+        } catch (error) {
+          console.error("Error applying variables:", error)
+        }
       }
   
       async _syncWithServer() {
+        if (!this.isConnected) return
+  
         try {
+          // Get current variables
+          const currentVariables = this._getAllVariables()
+  
+          // Send to server
           const response = await fetch(`${this.serverURL}/sync`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              playerID: this.playerID,
               playerName: this.playerName,
-              variables: this.variables,
-              timestamp: Date.now(),
+              variables: currentVariables,
             }),
           })
   
@@ -151,96 +128,54 @@
   
           const data = await response.json()
   
-          // Check for admin updates and trigger events
-          for (const [varName, value] of Object.entries(data.variables || {})) {
-            if (this.variables[varName] !== value) {
-              console.log(`Variable ${varName} changed from ${this.variables[varName]} to ${value} by admin`)
-  
-              // Update the variable
-              this.variables[varName] = value
-  
-              // Mark for HAT block triggering
-              this.variableChangeEvents[varName] = true
-  
-              // Trigger hat block
-              setTimeout(() => {
-                Scratch.vm.runtime.startHats("adminDashboard_onVariableChanged", { VAR_NAME: varName })
-              }, 100)
-            }
+          // Apply any changes from admin
+          if (data.variables) {
+            this._applyVariables(data.variables)
           }
   
-          this.lastSyncTime = Date.now()
-          this.isConnected = true
+          this.lastVariables = currentVariables
         } catch (error) {
-          console.error("Dashboard sync error:", error)
+          console.error("Sync error:", error)
           this.isConnected = false
         }
       }
   
-      connect(args) {
-        this.playerName = args.NAME || "Player"
-        this._startSync()
-        console.log(`Connected to dashboard as ${this.playerName} (ID: ${this.playerID})`)
-        return `Connected as ${this.playerName}`
-      }
+      connectPlayer(args) {
+        this.playerName = args.NAME || "Player1"
+        this.isConnected = true
   
-      disconnect() {
-        this._stopSync()
-        console.log("Disconnected from dashboard")
-        return "Disconnected"
-      }
+        console.log(`Connecting ${this.playerName} to admin dashboard...`)
   
-      registerVariable(args) {
-        const varName = args.VAR_NAME
-        const value = args.VALUE
+        // Start syncing every 2 seconds
+        if (this.syncInterval) clearInterval(this.syncInterval)
   
-        this.variables[varName] = value
-        console.log(`Registered variable: ${varName} = ${value}`)
-        return `Registered ${varName}`
-      }
+        this.syncInterval = setInterval(() => {
+          this._syncWithServer()
+        }, 2000)
   
-      updateVariable(args) {
-        const varName = args.VAR_NAME
-        const value = args.VALUE
+        // Initial sync
+        this._syncWithServer()
   
-        if (this.variables.hasOwnProperty(varName)) {
-          this.variables[varName] = value
-          console.log(`Updated variable: ${varName} = ${value}`)
-          return `Updated ${varName}`
-        }
-        return "Variable not found"
-      }
-  
-      getVariable(args) {
-        const varName = args.VAR_NAME
-        return this.variables[varName] || "0"
+        return `Connected ${this.playerName} to admin`
       }
   
       isConnected() {
         return this.isConnected
       }
   
-      onVariableChanged(args) {
-        const varName = args.VAR_NAME
+      disconnect() {
+        this.isConnected = false
   
-        // Check if this variable was changed by admin
-        if (this.variableChangeEvents[varName]) {
-          // Reset the flag so it only triggers once
-          this.variableChangeEvents[varName] = false
-          return true
+        if (this.syncInterval) {
+          clearInterval(this.syncInterval)
+          this.syncInterval = null
         }
   
-        return false
-      }
-  
-      getPlayerID() {
-        return this.playerID
-      }
-  
-      getAllVariables() {
-        return JSON.stringify(this.variables)
+        console.log("Disconnected from admin dashboard")
+        return "Disconnected from admin"
       }
     }
   
-    Scratch.extensions.register(new AdminDashboardExtension())
+    Scratch.extensions.register(new SimpleAdminExtension())
   })(window.Scratch)
+  
