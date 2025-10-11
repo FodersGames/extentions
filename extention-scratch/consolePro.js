@@ -1,4 +1,6 @@
-;((Scratch) => {
+(function(Scratch) {
+    'use strict';
+  
   class AdvancedMonitorExtension {
     constructor() {
       this.logs = []
