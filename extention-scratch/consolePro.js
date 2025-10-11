@@ -1,5 +1,5 @@
 ;((Scratch) => {
-  class ProfessionalLoggerExtension {
+  class AdvancedDebuggerExtension {
     constructor() {
       this.logs = []
       this.logId = 0
@@ -32,8 +32,8 @@
 
     getInfo() {
       return {
-        id: "professionalLogger",
-        name: "Professional Logger",
+        id: "advancedDebugger",
+        name: "Advanced Debugger",
         color1: "#2C3E50",
         color2: "#34495E",
         blocks: [
@@ -230,7 +230,7 @@
     _createConsole() {
       // Create console window
       this.consoleWindow = document.createElement("div")
-      this.consoleWindow.id = "professional-logger-console"
+      this.consoleWindow.id = "advanced-debugger-console"
       this.consoleWindow.style.cssText = `
                 position: fixed;
                 top: 50px;
@@ -263,7 +263,7 @@
                 cursor: move;
             `
       header.innerHTML = `
-                <span>Professional Logger Console</span>
+                <span>Advanced Debugger Console</span>
                 <div>
                     <button id="minimize-console" style="background: #F39C12; border: none; color: white; padding: 4px 8px; border-radius: 4px; margin-right: 5px; cursor: pointer;">−</button>
                     <button id="close-console" style="background: #E74C3C; border: none; color: white; padding: 4px 8px; border-radius: 4px; cursor: pointer;">×</button>
@@ -619,7 +619,7 @@
                                 <span style="font-size: 16px;">📊</span>
                                 <span style="color: #3498DB; font-weight: bold; font-size: 14px;">${this._escapeHtml(varName)}</span>
                             </div>
-                            <button onclick="window.professionalLogger.unwatchVariable({VAR: '${this._escapeHtml(varName)}'})" style="background: #E74C3C; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;">Unwatch</button>
+                            <button onclick="window.advancedDebugger.unwatchVariable({VAR: '${this._escapeHtml(varName)}'})" style="background: #E74C3C; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;">Unwatch</button>
                         </div>
                         <div style="font-size: 12px; color: #BDC3C7; margin-bottom: 8px;">
                             <strong>Current Value:</strong> <span style="color: #ECF0F1; background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px;">${this._escapeHtml(String(watchInfo.lastValue))}</span>
@@ -731,7 +731,7 @@
                                 <span style="font-size: 16px;">🔴</span>
                                 <span style="color: #E74C3C; font-weight: bold; font-size: 13px;">${this._escapeHtml(label)}</span>
                             </div>
-                            <button onclick="window.professionalLogger.removeBreakpoint({LABEL: '${this._escapeHtml(label)}'})" style="background: #27AE60; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;">Remove</button>
+                            <button onclick="window.advancedDebugger.removeBreakpoint({LABEL: '${this._escapeHtml(label)}'})" style="background: #27AE60; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;">Remove</button>
                         </div>
                     </div>
                 `
@@ -1465,7 +1465,7 @@
     }
   }
 
-  const extension = new ProfessionalLoggerExtension()
-  window.professionalLogger = extension
+  const extension = new AdvancedDebuggerExtension()
+  window.advancedDebugger = extension
   Scratch.extensions.register(extension)
 })(window.Scratch)
