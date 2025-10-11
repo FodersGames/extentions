@@ -1,10 +1,12 @@
 ;((Scratch) => {
-  class AdvancedDebuggerExtension {
+  class AdvancedMonitorExtension {
     constructor() {
       this.logs = []
       this.logId = 0
       this.consoleWindow = null
+      this.performanceWindow = null
       this.isConsoleOpen = false
+      this.isPerformanceOpen = false
       this.filters = {
         info: true,
         warning: true,
@@ -14,24 +16,23 @@
       this.maxLogs = 1000
       this.executionDepth = 0
 
-      this.watchedVariables = new Map() // varName -> { value, history: [{value, timestamp}] }
-      this.variableHistory = new Map() // varName -> array of changes
-
-      this.breakpoints = new Map() // breakpointId -> { name, enabled, hitCount }
-      this.isPaused = false
-      this.pauseResolve = null
-
-      this.callStack = [] // array of { functionName, timestamp, depth }
-      this.currentTab = "logs" // logs, variables, callstack, breakpoints
+      this.performanceMetrics = {
+        logsPerSecond: [],
+        memoryUsage: [],
+        executionTimes: [],
+        timestamps: [],
+      }
+      this.metricsInterval = null
 
       // Initialize console
       this._createConsole()
+      this._createPerformanceMonitor()
     }
 
     getInfo() {
       return {
-        id: "advancedDebugger",
-        name: "Advanced Debugger",
+        id: "advancedMonitor",
+        name: "Advanced Monitor",
         color1: "#2C3E50",
         color2: "#34495E",
         blocks: [
@@ -90,85 +91,6 @@
               },
             },
           },
-          "---",
-          {
-            opcode: "watchVariable",
-            blockType: Scratch.BlockType.COMMAND,
-            text: "👁️ Watch variable [VARNAME]",
-            arguments: {
-              VARNAME: {
-                type: Scratch.ArgumentType.STRING,
-                defaultValue: "my variable",
-              },
-            },
-          },
-          {
-            opcode: "unwatchVariable",
-            blockType: Scratch.BlockType.COMMAND,
-            text: "🚫 Unwatch variable [VARNAME]",
-            arguments: {
-              VARNAME: {
-                type: Scratch.ArgumentType.STRING,
-                defaultValue: "my variable",
-              },
-            },
-          },
-          {
-            opcode: "logVariableChange",
-            blockType: Scratch.BlockType.COMMAND,
-            text: "📝 Log [VARNAME] = [VALUE]",
-            arguments: {
-              VARNAME: {
-                type: Scratch.ArgumentType.STRING,
-                defaultValue: "my variable",
-              },
-              VALUE: {
-                type: Scratch.ArgumentType.STRING,
-                defaultValue: "0",
-              },
-            },
-          },
-          "---",
-          {
-            opcode: "setBreakpoint",
-            blockType: Scratch.BlockType.COMMAND,
-            text: "🛑 Breakpoint: [NAME]",
-            arguments: {
-              NAME: {
-                type: Scratch.ArgumentType.STRING,
-                defaultValue: "checkpoint 1",
-              },
-            },
-          },
-          {
-            opcode: "continueExecution",
-            blockType: Scratch.BlockType.COMMAND,
-            text: "▶️ Continue execution",
-          },
-          "---",
-          {
-            opcode: "enterFunction",
-            blockType: Scratch.BlockType.COMMAND,
-            text: "📥 Enter function [FUNCNAME]",
-            arguments: {
-              FUNCNAME: {
-                type: Scratch.ArgumentType.STRING,
-                defaultValue: "myFunction",
-              },
-            },
-          },
-          {
-            opcode: "exitFunction",
-            blockType: Scratch.BlockType.COMMAND,
-            text: "📤 Exit function [FUNCNAME]",
-            arguments: {
-              FUNCNAME: {
-                type: Scratch.ArgumentType.STRING,
-                defaultValue: "myFunction",
-              },
-            },
-          },
-          "---",
           {
             opcode: "openConsole",
             blockType: Scratch.BlockType.COMMAND,
@@ -212,13 +134,13 @@
     _createConsole() {
       // Create console window
       this.consoleWindow = document.createElement("div")
-      this.consoleWindow.id = "advanced-debugger-console"
+      this.consoleWindow.id = "advanced-monitor-console"
       this.consoleWindow.style.cssText = `
                 position: fixed;
                 top: 50px;
                 right: 20px;
-                width: 700px;
-                height: 550px;
+                width: 650px;
+                height: 500px;
                 background: linear-gradient(135deg, #2C3E50 0%, #34495E 100%);
                 border: 2px solid #3498DB;
                 border-radius: 12px;
@@ -245,42 +167,11 @@
                 cursor: move;
             `
       header.innerHTML = `
-                <span>🚀 Advanced Debugger Console</span>
+                <span>🚀 Advanced Monitor Console</span>
                 <div>
                     <button id="minimize-console" style="background: #F39C12; border: none; color: white; padding: 4px 8px; border-radius: 4px; margin-right: 5px; cursor: pointer;">−</button>
                     <button id="close-console" style="background: #E74C3C; border: none; color: white; padding: 4px 8px; border-radius: 4px; cursor: pointer;">×</button>
                 </div>
-            `
-
-      const pauseIndicator = document.createElement("div")
-      pauseIndicator.id = "pause-indicator"
-      pauseIndicator.style.cssText = `
-                background: #E74C3C;
-                color: white;
-                padding: 8px 16px;
-                display: none;
-                align-items: center;
-                justify-content: space-between;
-                font-size: 12px;
-                font-weight: bold;
-                border-bottom: 2px solid #C0392B;
-            `
-      pauseIndicator.innerHTML = `
-                <span>⏸️ EXECUTION PAUSED AT BREAKPOINT</span>
-                <button id="continue-btn" style="background: #27AE60; border: none; color: white; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-weight: bold;">▶️ Continue</button>
-            `
-
-      const tabBar = document.createElement("div")
-      tabBar.style.cssText = `
-                background: #34495E;
-                display: flex;
-                border-bottom: 2px solid #4A5F7A;
-            `
-      tabBar.innerHTML = `
-                <button class="tab-btn active" data-tab="logs" style="flex: 1; background: transparent; border: none; color: white; padding: 10px; cursor: pointer; font-size: 12px; font-weight: bold; border-bottom: 3px solid #3498DB;">📋 Logs</button>
-                <button class="tab-btn" data-tab="variables" style="flex: 1; background: transparent; border: none; color: #BDC3C7; padding: 10px; cursor: pointer; font-size: 12px; font-weight: bold; border-bottom: 3px solid transparent;">👁️ Variables</button>
-                <button class="tab-btn" data-tab="callstack" style="flex: 1; background: transparent; border: none; color: #BDC3C7; padding: 10px; cursor: pointer; font-size: 12px; font-weight: bold; border-bottom: 3px solid transparent;">📞 Call Stack</button>
-                <button class="tab-btn" data-tab="breakpoints" style="flex: 1; background: transparent; border: none; color: #BDC3C7; padding: 10px; cursor: pointer; font-size: 12px; font-weight: bold; border-bottom: 3px solid transparent;">🛑 Breakpoints</button>
             `
 
       // Create toolbar
@@ -297,6 +188,7 @@
       toolbar.innerHTML = `
                 <button id="clear-logs-btn" style="background: #E74C3C; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;">🗑️ Clear</button>
                 <button id="export-logs-btn" style="background: #27AE60; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;">💾 Export</button>
+                <button id="performance-btn" style="background: #9B59B6; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;">📈 Performance</button>
                 <div style="height: 20px; width: 1px; background: #4A5F7A;"></div>
                 <label style="color: #BDC3C7; font-size: 12px; display: flex; align-items: center; gap: 5px;">
                     <input type="checkbox" id="filter-info" checked style="accent-color: #3498DB;"> 📘 Info
@@ -332,67 +224,18 @@
                 ">
             `
 
-      const contentContainer = document.createElement("div")
-      contentContainer.style.cssText = `
-                flex: 1;
-                overflow-y: auto;
-                background: #2C3E50;
-                position: relative;
-            `
-
       // Create logs container
       const logsContainer = document.createElement("div")
       logsContainer.id = "logs-container"
-      logsContainer.className = "tab-content active"
       logsContainer.style.cssText = `
+                flex: 1;
+                overflow-y: auto;
                 padding: 8px;
+                background: #2C3E50;
                 color: #ECF0F1;
                 font-size: 12px;
                 line-height: 1.4;
-                height: 100%;
-                overflow-y: auto;
             `
-
-      const variablesContainer = document.createElement("div")
-      variablesContainer.id = "variables-container"
-      variablesContainer.className = "tab-content"
-      variablesContainer.style.cssText = `
-                padding: 8px;
-                color: #ECF0F1;
-                font-size: 12px;
-                display: none;
-                height: 100%;
-                overflow-y: auto;
-            `
-
-      const callStackContainer = document.createElement("div")
-      callStackContainer.id = "callstack-container"
-      callStackContainer.className = "tab-content"
-      callStackContainer.style.cssText = `
-                padding: 8px;
-                color: #ECF0F1;
-                font-size: 12px;
-                display: none;
-                height: 100%;
-                overflow-y: auto;
-            `
-
-      const breakpointsContainer = document.createElement("div")
-      breakpointsContainer.id = "breakpoints-container"
-      breakpointsContainer.className = "tab-content"
-      breakpointsContainer.style.cssText = `
-                padding: 8px;
-                color: #ECF0F1;
-                font-size: 12px;
-                display: none;
-                height: 100%;
-                overflow-y: auto;
-            `
-
-      contentContainer.appendChild(logsContainer)
-      contentContainer.appendChild(variablesContainer)
-      contentContainer.appendChild(callStackContainer)
-      contentContainer.appendChild(breakpointsContainer)
 
       // Create status bar
       const statusBar = document.createElement("div")
@@ -409,11 +252,9 @@
 
       // Assemble console
       this.consoleWindow.appendChild(header)
-      this.consoleWindow.appendChild(pauseIndicator)
-      this.consoleWindow.appendChild(tabBar)
       this.consoleWindow.appendChild(toolbar)
       this.consoleWindow.appendChild(searchBar)
-      this.consoleWindow.appendChild(contentContainer)
+      this.consoleWindow.appendChild(logsContainer)
       this.consoleWindow.appendChild(statusBar)
 
       // Add to document
@@ -424,6 +265,373 @@
 
       // Make draggable
       this._makeDraggable(header)
+    }
+
+    _createPerformanceMonitor() {
+      this.performanceWindow = document.createElement("div")
+      this.performanceWindow.id = "performance-monitor"
+      this.performanceWindow.style.cssText = `
+                position: fixed;
+                top: 50px;
+                left: 20px;
+                width: 700px;
+                height: 550px;
+                background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+                border: 2px solid #9B59B6;
+                border-radius: 12px;
+                box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+                z-index: 999998;
+                font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+                display: none;
+                flex-direction: column;
+                backdrop-filter: blur(10px);
+            `
+
+      // Create header
+      const header = document.createElement("div")
+      header.style.cssText = `
+                background: linear-gradient(90deg, #9B59B6, #8E44AD);
+                color: white;
+                padding: 12px 16px;
+                border-radius: 10px 10px 0 0;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                font-weight: bold;
+                font-size: 14px;
+                cursor: move;
+            `
+      header.innerHTML = `
+                <span>📈 Performance Monitor - Real-Time Analytics</span>
+                <button id="close-performance" style="background: #E74C3C; border: none; color: white; padding: 4px 8px; border-radius: 4px; cursor: pointer;">×</button>
+            `
+
+      // Create metrics cards
+      const metricsContainer = document.createElement("div")
+      metricsContainer.style.cssText = `
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 12px;
+                padding: 16px;
+                background: #16213e;
+            `
+      metricsContainer.innerHTML = `
+                <div style="background: rgba(52, 152, 219, 0.2); border: 1px solid #3498DB; border-radius: 8px; padding: 12px;">
+                    <div style="color: #3498DB; font-size: 11px; margin-bottom: 4px;">📊 LOGS/SEC</div>
+                    <div id="metric-logs-per-sec" style="color: #ECF0F1; font-size: 24px; font-weight: bold;">0</div>
+                </div>
+                <div style="background: rgba(243, 156, 18, 0.2); border: 1px solid #F39C12; border-radius: 8px; padding: 12px;">
+                    <div style="color: #F39C12; font-size: 11px; margin-bottom: 4px;">💾 TOTAL LOGS</div>
+                    <div id="metric-total-logs" style="color: #ECF0F1; font-size: 24px; font-weight: bold;">0</div>
+                </div>
+                <div style="background: rgba(155, 89, 182, 0.2); border: 1px solid #9B59B6; border-radius: 8px; padding: 12px;">
+                    <div style="color: #9B59B6; font-size: 11px; margin-bottom: 4px;">⚡ AVG TIME</div>
+                    <div id="metric-avg-time" style="color: #ECF0F1; font-size: 24px; font-weight: bold;">0ms</div>
+                </div>
+            `
+
+      // Create charts container
+      const chartsContainer = document.createElement("div")
+      chartsContainer.style.cssText = `
+                flex: 1;
+                padding: 16px;
+                display: flex;
+                flex-direction: column;
+                gap: 16px;
+                overflow-y: auto;
+                background: #1a1a2e;
+            `
+
+      // Chart 1: Logs per second
+      const chart1Container = document.createElement("div")
+      chart1Container.style.cssText = `
+                background: rgba(52, 152, 219, 0.1);
+                border: 1px solid #3498DB;
+                border-radius: 8px;
+                padding: 12px;
+                height: 180px;
+            `
+      chart1Container.innerHTML = `
+                <div style="color: #3498DB; font-size: 12px; font-weight: bold; margin-bottom: 8px;">📊 Logs Per Second (Real-Time)</div>
+                <canvas id="chart-logs-per-sec" style="width: 100%; height: 140px;"></canvas>
+            `
+
+      // Chart 2: Log types distribution
+      const chart2Container = document.createElement("div")
+      chart2Container.style.cssText = `
+                background: rgba(243, 156, 18, 0.1);
+                border: 1px solid #F39C12;
+                border-radius: 8px;
+                padding: 12px;
+                height: 180px;
+            `
+      chart2Container.innerHTML = `
+                <div style="color: #F39C12; font-size: 12px; font-weight: bold; margin-bottom: 8px;">📈 Log Types Distribution</div>
+                <canvas id="chart-log-types" style="width: 100%; height: 140px;"></canvas>
+            `
+
+      chartsContainer.appendChild(chart1Container)
+      chartsContainer.appendChild(chart2Container)
+
+      // Assemble performance window
+      this.performanceWindow.appendChild(header)
+      this.performanceWindow.appendChild(metricsContainer)
+      this.performanceWindow.appendChild(chartsContainer)
+
+      // Add to document
+      document.body.appendChild(this.performanceWindow)
+
+      // Make draggable
+      this._makeDraggable(header, this.performanceWindow)
+
+      // Add close button listener
+      document.getElementById("close-performance").addEventListener("click", () => {
+        this.closePerformanceMonitor()
+      })
+
+      // Initialize charts
+      this._initializeCharts()
+    }
+
+    _initializeCharts() {
+      this.charts = {
+        logsPerSec: {
+          canvas: document.getElementById("chart-logs-per-sec"),
+          data: [],
+          maxPoints: 30,
+        },
+        logTypes: {
+          canvas: document.getElementById("chart-log-types"),
+          data: { info: 0, warning: 0, error: 0, debug: 0 },
+        },
+      }
+
+      // Set canvas sizes
+      if (this.charts.logsPerSec.canvas) {
+        const rect = this.charts.logsPerSec.canvas.getBoundingClientRect()
+        this.charts.logsPerSec.canvas.width = rect.width * 2
+        this.charts.logsPerSec.canvas.height = rect.height * 2
+      }
+
+      if (this.charts.logTypes.canvas) {
+        const rect = this.charts.logTypes.canvas.getBoundingClientRect()
+        this.charts.logTypes.canvas.width = rect.width * 2
+        this.charts.logTypes.canvas.height = rect.height * 2
+      }
+    }
+
+    _drawLogsPerSecChart() {
+      const chart = this.charts.logsPerSec
+      const canvas = chart.canvas
+      if (!canvas) return
+
+      const ctx = canvas.getContext("2d")
+      const width = canvas.width
+      const height = canvas.height
+
+      // Clear canvas
+      ctx.clearRect(0, 0, width, height)
+
+      // Background
+      ctx.fillStyle = "rgba(44, 62, 80, 0.3)"
+      ctx.fillRect(0, 0, width, height)
+
+      if (chart.data.length === 0) {
+        ctx.fillStyle = "#7F8C8D"
+        ctx.font = "24px Consolas"
+        ctx.textAlign = "center"
+        ctx.fillText("Waiting for data...", width / 2, height / 2)
+        return
+      }
+
+      // Find max value for scaling
+      const maxValue = Math.max(...chart.data, 1)
+      const padding = 40
+      const chartWidth = width - padding * 2
+      const chartHeight = height - padding * 2
+
+      // Draw grid lines
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.1)"
+      ctx.lineWidth = 1
+      for (let i = 0; i <= 5; i++) {
+        const y = padding + (chartHeight / 5) * i
+        ctx.beginPath()
+        ctx.moveTo(padding, y)
+        ctx.lineTo(width - padding, y)
+        ctx.stroke()
+
+        // Y-axis labels
+        const value = maxValue - (maxValue / 5) * i
+        ctx.fillStyle = "#BDC3C7"
+        ctx.font = "20px Consolas"
+        ctx.textAlign = "right"
+        ctx.fillText(Math.round(value).toString(), padding - 10, y + 7)
+      }
+
+      // Draw line chart
+      ctx.strokeStyle = "#3498DB"
+      ctx.lineWidth = 4
+      ctx.beginPath()
+
+      chart.data.forEach((value, index) => {
+        const x = padding + (chartWidth / (chart.maxPoints - 1)) * index
+        const y = padding + chartHeight - (value / maxValue) * chartHeight
+
+        if (index === 0) {
+          ctx.moveTo(x, y)
+        } else {
+          ctx.lineTo(x, y)
+        }
+      })
+
+      ctx.stroke()
+
+      // Draw points
+      ctx.fillStyle = "#3498DB"
+      chart.data.forEach((value, index) => {
+        const x = padding + (chartWidth / (chart.maxPoints - 1)) * index
+        const y = padding + chartHeight - (value / maxValue) * chartHeight
+        ctx.beginPath()
+        ctx.arc(x, y, 6, 0, Math.PI * 2)
+        ctx.fill()
+      })
+
+      // Draw current value
+      if (chart.data.length > 0) {
+        const lastValue = chart.data[chart.data.length - 1]
+        ctx.fillStyle = "#3498DB"
+        ctx.font = "bold 28px Consolas"
+        ctx.textAlign = "left"
+        ctx.fillText(`${lastValue.toFixed(1)} logs/s`, padding, 35)
+      }
+    }
+
+    _drawLogTypesChart() {
+      const chart = this.charts.logTypes
+      const canvas = chart.canvas
+      if (!canvas) return
+
+      const ctx = canvas.getContext("2d")
+      const width = canvas.width
+      const height = canvas.height
+
+      // Clear canvas
+      ctx.clearRect(0, 0, width, height)
+
+      // Background
+      ctx.fillStyle = "rgba(44, 62, 80, 0.3)"
+      ctx.fillRect(0, 0, width, height)
+
+      const types = ["info", "warning", "error", "debug"]
+      const colors = {
+        info: "#3498DB",
+        warning: "#F39C12",
+        error: "#E74C3C",
+        debug: "#9B59B6",
+      }
+      const labels = {
+        info: "📘 Info",
+        warning: "⚠️ Warning",
+        error: "🔴 Error",
+        debug: "🔧 Debug",
+      }
+
+      const maxValue = Math.max(...Object.values(chart.data), 1)
+      const padding = 40
+      const chartWidth = width - padding * 2
+      const chartHeight = height - padding * 2
+      const barWidth = chartWidth / types.length - 20
+
+      types.forEach((type, index) => {
+        const value = chart.data[type]
+        const barHeight = (value / maxValue) * chartHeight
+        const x = padding + (chartWidth / types.length) * index + 10
+        const y = padding + chartHeight - barHeight
+
+        // Draw bar
+        ctx.fillStyle = colors[type]
+        ctx.fillRect(x, y, barWidth, barHeight)
+
+        // Draw value on top
+        ctx.fillStyle = "#ECF0F1"
+        ctx.font = "bold 24px Consolas"
+        ctx.textAlign = "center"
+        ctx.fillText(value.toString(), x + barWidth / 2, y - 10)
+
+        // Draw label
+        ctx.fillStyle = "#BDC3C7"
+        ctx.font = "20px Consolas"
+        ctx.fillText(labels[type], x + barWidth / 2, height - 10)
+      })
+    }
+
+    _updatePerformanceMetrics() {
+      if (!this.isPerformanceOpen) return
+
+      // Calculate logs per second
+      const now = Date.now()
+      const oneSecondAgo = now - 1000
+      const recentLogs = this.logs.filter((log) => new Date(log.timestamp).getTime() > oneSecondAgo)
+      const logsPerSec = recentLogs.length
+
+      // Update logs per second chart
+      this.charts.logsPerSec.data.push(logsPerSec)
+      if (this.charts.logsPerSec.data.length > this.charts.logsPerSec.maxPoints) {
+        this.charts.logsPerSec.data.shift()
+      }
+
+      // Update log types distribution
+      this.charts.logTypes.data = {
+        info: this.logs.filter((l) => l.type === "info").length,
+        warning: this.logs.filter((l) => l.type === "warning").length,
+        error: this.logs.filter((l) => l.type === "error").length,
+        debug: this.logs.filter((l) => l.type === "debug").length,
+      }
+
+      // Calculate average execution time
+      const executionTimes = this.logs
+        .filter((l) => l.details && l.details.executionTime)
+        .map((l) => Number.parseFloat(l.details.executionTime))
+      const avgTime = executionTimes.length > 0 ? executionTimes.reduce((a, b) => a + b, 0) / executionTimes.length : 0
+
+      // Update metric displays
+      const logsPerSecEl = document.getElementById("metric-logs-per-sec")
+      const totalLogsEl = document.getElementById("metric-total-logs")
+      const avgTimeEl = document.getElementById("metric-avg-time")
+
+      if (logsPerSecEl) logsPerSecEl.textContent = logsPerSec.toString()
+      if (totalLogsEl) totalLogsEl.textContent = this.logs.length.toString()
+      if (avgTimeEl) avgTimeEl.textContent = `${avgTime.toFixed(1)}ms`
+
+      // Redraw charts
+      this._drawLogsPerSecChart()
+      this._drawLogTypesChart()
+    }
+
+    openPerformanceMonitor() {
+      this.performanceWindow.style.display = "flex"
+      this.isPerformanceOpen = true
+
+      // Start metrics update interval
+      if (!this.metricsInterval) {
+        this.metricsInterval = setInterval(() => {
+          this._updatePerformanceMetrics()
+        }, 500) // Update every 500ms
+      }
+
+      // Initial update
+      this._updatePerformanceMetrics()
+    }
+
+    closePerformanceMonitor() {
+      this.performanceWindow.style.display = "none"
+      this.isPerformanceOpen = false
+
+      // Stop metrics update interval
+      if (this.metricsInterval) {
+        clearInterval(this.metricsInterval)
+        this.metricsInterval = null
+      }
     }
 
     _addEventListeners() {
@@ -443,9 +651,9 @@
       })
 
       document
-        .getElementById("continue-btn")
+        .getElementById("performance-btn")
         .addEventListener("click", () => {
-          this._resumeExecution()
+          this.openPerformanceMonitor()
         })
 
       // Filter checkboxes
@@ -460,52 +668,10 @@
       document.getElementById("search-logs").addEventListener("input", (e) => {
         this._filterLogs(e.target.value)
       })
-
-      document.querySelectorAll(".tab-btn").forEach((btn) => {
-        btn.addEventListener("click", (e) => {
-          const tab = e.target.dataset.tab
-          this._switchTab(tab)
-        })
-      })
     }
 
-    _switchTab(tabName) {
-      this.currentTab = tabName
-
-      // Update tab buttons
-      document.querySelectorAll(".tab-btn").forEach((btn) => {
-        if (btn.dataset.tab === tabName) {
-          btn.classList.add("active")
-          btn.style.color = "white"
-          btn.style.borderBottomColor = "#3498DB"
-        } else {
-          btn.classList.remove("active")
-          btn.style.color = "#BDC3C7"
-          btn.style.borderBottomColor = "transparent"
-        }
-      })
-
-      // Update content visibility
-      document.querySelectorAll(".tab-content").forEach((content) => {
-        content.style.display = "none"
-      })
-
-      const activeContent = document.getElementById(`${tabName}-container`)
-      if (activeContent) {
-        activeContent.style.display = "block"
-      }
-
-      // Refresh the active tab content
-      if (tabName === "variables") {
-        this._refreshVariablesDisplay()
-      } else if (tabName === "callstack") {
-        this._refreshCallStackDisplay()
-      } else if (tabName === "breakpoints") {
-        this._refreshBreakpointsDisplay()
-      }
-    }
-
-    _makeDraggable(header) {
+    _makeDraggable(header, targetWindow = null) {
+      const window = targetWindow || this.consoleWindow
       let isDragging = false
       let currentX
       let currentY
@@ -529,7 +695,7 @@
           currentY = e.clientY - initialY
           xOffset = currentX
           yOffset = currentY
-          this.consoleWindow.style.transform = `translate(${currentX}px, ${currentY}px)`
+          window.style.transform = `translate(${currentX}px, ${currentY}px)`
         }
       })
 
@@ -741,189 +907,6 @@
       return html
     }
 
-    _refreshVariablesDisplay() {
-      const container = document.getElementById("variables-container")
-      if (!container) return
-
-      container.innerHTML = ""
-
-      if (this.watchedVariables.size === 0) {
-        container.innerHTML = `
-                    <div style="text-align: center; padding: 40px; color: #7F8C8D;">
-                        <div style="font-size: 48px; margin-bottom: 16px;">👁️</div>
-                        <div style="font-size: 14px; margin-bottom: 8px;">No variables being watched</div>
-                        <div style="font-size: 12px;">Use the "Watch variable" block to start tracking variables</div>
-                    </div>
-                `
-        return
-      }
-
-      this.watchedVariables.forEach((data, varName) => {
-        const varElement = document.createElement("div")
-        varElement.style.cssText = `
-                    background: rgba(52, 152, 219, 0.1);
-                    border-left: 4px solid #3498DB;
-                    border-radius: 6px;
-                    padding: 12px;
-                    margin-bottom: 8px;
-                `
-
-        const history = data.history || []
-        const currentValue = data.value
-
-        varElement.innerHTML = `
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                        <div style="font-weight: bold; color: #3498DB; font-size: 14px;">📌 ${this._escapeHtml(varName)}</div>
-                        <div style="color: #27AE60; font-size: 13px; font-weight: bold;">= ${this._escapeHtml(String(currentValue))}</div>
-                    </div>
-                    <div style="font-size: 11px; color: #7F8C8D; margin-bottom: 8px;">
-                        Changes: ${history.length} • Last updated: ${history.length > 0 ? new Date(history[history.length - 1].timestamp).toLocaleTimeString() : "Never"}
-                    </div>
-                    ${
-                      history.length > 0
-                        ? `
-                        <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px; margin-top: 8px;">
-                            <div style="font-size: 11px; color: #F39C12; font-weight: bold; margin-bottom: 6px;">📊 History (last ${Math.min(5, history.length)} changes):</div>
-                            ${history
-                              .slice(-5)
-                              .reverse()
-                              .map(
-                                (entry, idx) => `
-                                <div style="font-size: 11px; color: #BDC3C7; padding: 4px 0; display: flex; justify-content: space-between;">
-                                    <span>${this._escapeHtml(String(entry.value))}</span>
-                                    <span style="color: #7F8C8D;">${new Date(entry.timestamp).toLocaleTimeString()}</span>
-                                </div>
-                            `,
-                              )
-                              .join("")}
-                        </div>
-                    `
-                        : ""
-                    }
-                `
-
-        container.appendChild(varElement)
-      })
-    }
-
-    _refreshCallStackDisplay() {
-      const container = document.getElementById("callstack-container")
-      if (!container) return
-
-      container.innerHTML = ""
-
-      if (this.callStack.length === 0) {
-        container.innerHTML = `
-                    <div style="text-align: center; padding: 40px; color: #7F8C8D;">
-                        <div style="font-size: 48px; margin-bottom: 16px;">📞</div>
-                        <div style="font-size: 14px; margin-bottom: 8px;">Call stack is empty</div>
-                        <div style="font-size: 12px;">Use "Enter function" and "Exit function" blocks to track execution flow</div>
-                    </div>
-                `
-        return
-      }
-
-      const stackTitle = document.createElement("div")
-      stackTitle.style.cssText = `
-                font-size: 13px;
-                color: #F39C12;
-                font-weight: bold;
-                margin-bottom: 12px;
-                padding-bottom: 8px;
-                border-bottom: 2px solid #4A5F7A;
-            `
-      stackTitle.textContent = `📞 Call Stack (${this.callStack.length} functions)`
-      container.appendChild(stackTitle)
-
-      this.callStack.forEach((entry, index) => {
-        const stackElement = document.createElement("div")
-        const indentPx = entry.depth * 20
-
-        stackElement.style.cssText = `
-                    background: rgba(155, 89, 182, 0.1);
-                    border-left: 4px solid #9B59B6;
-                    border-radius: 6px;
-                    padding: 10px;
-                    margin-bottom: 6px;
-                    margin-left: ${indentPx}px;
-                    transition: all 0.2s ease;
-                `
-
-        stackElement.innerHTML = `
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            <span style="color: #7F8C8D; font-size: 10px; margin-right: 8px;">#${index + 1}</span>
-                            <span style="color: #9B59B6; font-weight: bold; font-size: 13px;">📥 ${this._escapeHtml(entry.functionName)}</span>
-                            ${entry.depth > 0 ? `<span style="color: #95A5A6; font-size: 10px; margin-left: 8px;">depth:${entry.depth}</span>` : ""}
-                        </div>
-                        <div style="color: #7F8C8D; font-size: 10px;">
-                            ${new Date(entry.timestamp).toLocaleTimeString()}
-                        </div>
-                    </div>
-                `
-
-        container.appendChild(stackElement)
-      })
-    }
-
-    _refreshBreakpointsDisplay() {
-      const container = document.getElementById("breakpoints-container")
-      if (!container) return
-
-      container.innerHTML = ""
-
-      if (this.breakpoints.size === 0) {
-        container.innerHTML = `
-                    <div style="text-align: center; padding: 40px; color: #7F8C8D;">
-                        <div style="font-size: 48px; margin-bottom: 16px;">🛑</div>
-                        <div style="font-size: 14px; margin-bottom: 8px;">No breakpoints set</div>
-                        <div style="font-size: 12px;">Use the "Breakpoint" block to pause execution at specific points</div>
-                    </div>
-                `
-        return
-      }
-
-      const bpTitle = document.createElement("div")
-      bpTitle.style.cssText = `
-                font-size: 13px;
-                color: #E74C3C;
-                font-weight: bold;
-                margin-bottom: 12px;
-                padding-bottom: 8px;
-                border-bottom: 2px solid #4A5F7A;
-            `
-      bpTitle.textContent = `🛑 Breakpoints (${this.breakpoints.size} active)`
-      container.appendChild(bpTitle)
-
-      this.breakpoints.forEach((data, name) => {
-        const bpElement = document.createElement("div")
-
-        bpElement.style.cssText = `
-                    background: rgba(231, 76, 60, 0.1);
-                    border-left: 4px solid #E74C3C;
-                    border-radius: 6px;
-                    padding: 12px;
-                    margin-bottom: 8px;
-                `
-
-        bpElement.innerHTML = `
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            <span style="color: #E74C3C; font-weight: bold; font-size: 13px;">🛑 ${this._escapeHtml(name)}</span>
-                            <div style="font-size: 11px; color: #7F8C8D; margin-top: 4px;">
-                                Hit count: ${data.hitCount} times
-                            </div>
-                        </div>
-                        <div style="color: ${data.enabled ? "#27AE60" : "#E74C3C"}; font-size: 11px; font-weight: bold;">
-                            ${data.enabled ? "✓ Enabled" : "✗ Disabled"}
-                        </div>
-                    </div>
-                `
-
-        container.appendChild(bpElement)
-      })
-    }
-
     _getLogColor(type) {
       const colors = {
         info: "#3498DB",
@@ -975,11 +958,7 @@
       if (statusBar) {
         const totalLogs = this.logs.length
         const visibleLogs = document.querySelectorAll('.log-entry:not([style*="display: none"])').length
-        const watchedVars = this.watchedVariables.size
-        const stackDepth = this.callStack.length
-        const breakpointsCount = this.breakpoints.size
-
-        statusBar.textContent = `Ready • ${totalLogs} logs • ${watchedVars} watched vars • Stack: ${stackDepth} • BP: ${breakpointsCount}`
+        statusBar.textContent = `Ready • ${totalLogs} total logs • ${visibleLogs} visible`
       }
     }
 
@@ -1119,33 +1098,6 @@
       }
     }
 
-    _pauseExecution() {
-      this.isPaused = true
-      const pauseIndicator = document.getElementById("pause-indicator")
-      if (pauseIndicator) {
-        pauseIndicator.style.display = "flex"
-      }
-
-      return new Promise((resolve) => {
-        this.pauseResolve = resolve
-      })
-    }
-
-    _resumeExecution() {
-      this.isPaused = false
-      const pauseIndicator = document.getElementById("pause-indicator")
-      if (pauseIndicator) {
-        pauseIndicator.style.display = "none"
-      }
-
-      if (this.pauseResolve) {
-        this.pauseResolve()
-        this.pauseResolve = null
-      }
-
-      this._addLog("info", "▶️ Execution resumed")
-    }
-
     // Public methods for blocks
     logInfo(args) {
       this._addLog("info", args.MESSAGE)
@@ -1206,143 +1158,6 @@
       }
     }
 
-    watchVariable(args) {
-      const varName = args.VARNAME
-
-      if (!this.watchedVariables.has(varName)) {
-        this.watchedVariables.set(varName, {
-          value: "undefined",
-          history: [],
-        })
-        this._addLog("info", `👁️ Now watching variable: ${varName}`)
-        this._refreshVariablesDisplay()
-        this._updateStatusBar()
-      }
-    }
-
-    unwatchVariable(args) {
-      const varName = args.VARNAME
-
-      if (this.watchedVariables.has(varName)) {
-        this.watchedVariables.delete(varName)
-        this._addLog("info", `🚫 Stopped watching variable: ${varName}`)
-        this._refreshVariablesDisplay()
-        this._updateStatusBar()
-      }
-    }
-
-    logVariableChange(args) {
-      const varName = args.VARNAME
-      const value = args.VALUE
-
-      if (this.watchedVariables.has(varName)) {
-        const varData = this.watchedVariables.get(varName)
-        const oldValue = varData.value
-
-        varData.value = value
-        varData.history.push({
-          value: value,
-          timestamp: Date.now(),
-        })
-
-        // Limit history to last 50 entries
-        if (varData.history.length > 50) {
-          varData.history.shift()
-        }
-
-        this._addLog("debug", `📝 ${varName}: ${oldValue} → ${value}`)
-        this._refreshVariablesDisplay()
-      } else {
-        // Auto-watch if not already watching
-        this.watchedVariables.set(varName, {
-          value: value,
-          history: [
-            {
-              value: value,
-              timestamp: Date.now(),
-            },
-          ],
-        })
-        this._addLog("info", `👁️ Auto-watching variable: ${varName} = ${value}`)
-        this._refreshVariablesDisplay()
-        this._updateStatusBar()
-      }
-    }
-
-    async setBreakpoint(args) {
-      const name = args.NAME
-
-      if (!this.breakpoints.has(name)) {
-        this.breakpoints.set(name, {
-          name: name,
-          enabled: true,
-          hitCount: 0,
-        })
-      }
-
-      const bp = this.breakpoints.get(name)
-      bp.hitCount++
-
-      this._addLog("warning", `🛑 Breakpoint hit: ${name} (${bp.hitCount} times)`)
-      this._refreshBreakpointsDisplay()
-      this._updateStatusBar()
-
-      // Open console if not already open
-      if (!this.isConsoleOpen) {
-        this.openConsole()
-      }
-
-      // Pause execution
-      await this._pauseExecution()
-    }
-
-    continueExecution() {
-      if (this.isPaused) {
-        this._resumeExecution()
-      } else {
-        this._addLog("warning", "⚠️ Execution is not paused")
-      }
-    }
-
-    enterFunction(args) {
-      const funcName = args.FUNCNAME
-
-      this.callStack.push({
-        functionName: funcName,
-        timestamp: Date.now(),
-        depth: this.callStack.length,
-      })
-
-      this.executionDepth++
-
-      this._addLog("info", `📥 Entering: ${funcName}`)
-      this._refreshCallStackDisplay()
-      this._updateStatusBar()
-    }
-
-    exitFunction(args) {
-      const funcName = args.FUNCNAME
-
-      if (this.callStack.length > 0) {
-        const lastFunc = this.callStack.pop()
-
-        if (lastFunc.functionName !== funcName) {
-          this._addLog(
-            "warning",
-            `⚠️ Function mismatch: Expected to exit "${lastFunc.functionName}" but got "${funcName}"`,
-          )
-        }
-      }
-
-      if (this.executionDepth > 0) {
-        this.executionDepth--
-      }
-
-      this._addLog("info", `📤 Exiting: ${funcName}`)
-      this._refreshCallStackDisplay()
-      this._updateStatusBar()
-    }
-
     openConsole() {
       this.consoleWindow.style.display = "flex"
       this.isConsoleOpen = true
@@ -1373,28 +1188,15 @@
     }
 
     exportLogs() {
-      const logData = {
-        logs: this.logs.map((log) => ({
-          id: log.id,
-          type: log.type,
-          message: log.message,
-          details: log.details,
-          timestamp: log.timestamp.toISOString(),
-          depth: log.depth,
-          isExpandable: log.isExpandable,
-        })),
-        watchedVariables: Array.from(this.watchedVariables.entries()).map(([name, data]) => ({
-          name: name,
-          currentValue: data.value,
-          history: data.history,
-        })),
-        callStack: this.callStack,
-        breakpoints: Array.from(this.breakpoints.entries()).map(([name, data]) => ({
-          name: name,
-          enabled: data.enabled,
-          hitCount: data.hitCount,
-        })),
-      }
+      const logData = this.logs.map((log) => ({
+        id: log.id,
+        type: log.type,
+        message: log.message,
+        details: log.details,
+        timestamp: log.timestamp.toISOString(),
+        depth: log.depth,
+        isExpandable: log.isExpandable,
+      }))
 
       const dataStr = JSON.stringify(logData, null, 2)
       const dataBlob = new Blob([dataStr], { type: "application/json" })
@@ -1402,16 +1204,13 @@
 
       const link = document.createElement("a")
       link.href = url
-      link.download = `scratch-debug-session-${new Date().toISOString().split("T")[0]}.json`
+      link.download = `scratch-logs-${new Date().toISOString().split("T")[0]}.json`
       link.click()
 
       URL.revokeObjectURL(url)
-      this._addLog(
-        "info",
-        `💾 Exported debug session with ${this.logs.length} logs, ${this.watchedVariables.size} variables, and ${this.breakpoints.size} breakpoints`,
-      )
+      this._addLog("info", `Exported ${this.logs.length} logs to file`)
     }
   }
 
-  Scratch.extensions.register(new AdvancedDebuggerExtension())
+  Scratch.extensions.register(new AdvancedMonitorExtension())
 })(window.Scratch)
