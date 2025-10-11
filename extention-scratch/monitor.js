@@ -163,260 +163,597 @@
     }
 
     _createConsole() {
-      // Create console window
       this.consoleWindow = document.createElement("div")
       this.consoleWindow.id = "advanced-monitor-console"
       this.consoleWindow.style.cssText = `
                 position: fixed;
                 top: 50px;
                 right: 20px;
-                width: 650px;
-                height: 500px;
-                background: linear-gradient(135deg, #16A085 0%, #1ABC9C 100%);
-                border: 2px solid #48C9B0;
-                border-radius: 12px;
-                box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+                width: 700px;
+                height: 550px;
+                background: rgba(15, 23, 42, 0.85);
+                backdrop-filter: blur(20px) saturate(180%);
+                -webkit-backdrop-filter: blur(20px) saturate(180%);
+                border: 1px solid rgba(148, 163, 184, 0.2);
+                border-radius: 16px;
+                box-shadow: 
+                    0 0 0 1px rgba(255, 255, 255, 0.05),
+                    0 20px 25px -5px rgba(0, 0, 0, 0.4),
+                    0 10px 10px -5px rgba(0, 0, 0, 0.3),
+                    0 0 60px rgba(59, 130, 246, 0.15);
                 z-index: 999999;
-                font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
                 display: none;
                 flex-direction: column;
-                backdrop-filter: blur(10px);
+                overflow: hidden;
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             `
 
-      // Create header
       const header = document.createElement("div")
       header.style.cssText = `
-                background: linear-gradient(90deg, #1ABC9C, #16A085);
+                background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(147, 51, 234, 0.15) 100%);
+                border-bottom: 1px solid rgba(148, 163, 184, 0.15);
                 color: white;
-                padding: 12px 16px;
-                border-radius: 10px 10px 0 0;
+                padding: 16px 20px;
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                font-weight: bold;
+                font-weight: 600;
                 font-size: 14px;
                 cursor: move;
+                letter-spacing: -0.01em;
             `
       header.innerHTML = `
-                <span>🎯 Advanced Monitor Console</span>
-                <div>
-                    <button id="am-perf-btn" style="background: #9B59B6; border: none; color: white; padding: 4px 8px; border-radius: 4px; margin-right: 5px; cursor: pointer; font-size: 11px;">📊 Perf</button>
-                    <button id="am-minimize-console" style="background: #E67E22; border: none; color: white; padding: 4px 8px; border-radius: 4px; margin-right: 5px; cursor: pointer;">−</button>
-                    <button id="am-close-console" style="background: #C0392B; border: none; color: white; padding: 4px 8px; border-radius: 4px; cursor: pointer;">×</button>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="
+                        width: 32px;
+                        height: 32px;
+                        background: linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%);
+                        border-radius: 8px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 16px;
+                        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+                    ">🎯</div>
+                    <span style="background: linear-gradient(135deg, #60A5FA 0%, #A78BFA 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 700;">Advanced Monitor</span>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button id="am-perf-btn" style="
+                        background: linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(168, 85, 247, 0.2) 100%);
+                        border: 1px solid rgba(168, 85, 247, 0.3);
+                        color: #C4B5FD;
+                        padding: 6px 12px;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        font-size: 11px;
+                        font-weight: 600;
+                        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                        backdrop-filter: blur(10px);
+                    " onmouseover="this.style.background='linear-gradient(135deg, rgba(139, 92, 246, 0.3) 0%, rgba(168, 85, 247, 0.3) 100%)'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(168, 85, 247, 0.3)'" onmouseout="this.style.background='linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(168, 85, 247, 0.2) 100%)'; this.style.transform='translateY(0)'; this.style.boxShadow='none'">📊 Performance</button>
+                    <button id="am-minimize-console" style="
+                        background: rgba(100, 116, 139, 0.2);
+                        border: 1px solid rgba(148, 163, 184, 0.2);
+                        color: #CBD5E1;
+                        width: 32px;
+                        height: 32px;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        font-size: 16px;
+                        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                    " onmouseover="this.style.background='rgba(100, 116, 139, 0.3)'; this.style.transform='translateY(-1px)'" onmouseout="this.style.background='rgba(100, 116, 139, 0.2)'; this.style.transform='translateY(0)'">−</button>
+                    <button id="am-close-console" style="
+                        background: rgba(239, 68, 68, 0.2);
+                        border: 1px solid rgba(239, 68, 68, 0.3);
+                        color: #FCA5A5;
+                        width: 32px;
+                        height: 32px;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        font-size: 16px;
+                        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                    " onmouseover="this.style.background='rgba(239, 68, 68, 0.3)'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(239, 68, 68, 0.3)'" onmouseout="this.style.background='rgba(239, 68, 68, 0.2)'; this.style.transform='translateY(0)'; this.style.boxShadow='none'">×</button>
                 </div>
             `
 
-      // Create toolbar
       const toolbar = document.createElement("div")
       toolbar.style.cssText = `
-                background: #148F77;
-                padding: 8px 16px;
-                border-bottom: 1px solid #1ABC9C;
+                background: rgba(15, 23, 42, 0.5);
+                padding: 12px 20px;
+                border-bottom: 1px solid rgba(148, 163, 184, 0.1);
                 display: flex;
-                gap: 10px;
+                gap: 12px;
                 align-items: center;
                 flex-wrap: wrap;
             `
       toolbar.innerHTML = `
-                <button id="am-clear-logs-btn" style="background: #C0392B; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;">🧹 Clear</button>
-                <button id="am-export-logs-btn" style="background: #27AE60; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;">💿 Save</button>
-                <div style="height: 20px; width: 1px; background: #1ABC9C;"></div>
-                <label style="color: #E8F8F5; font-size: 12px; display: flex; align-items: center; gap: 5px;">
-                    <input type="checkbox" id="am-filter-info" checked style="accent-color: #3498DB;"> 📗 Info
+                <button id="am-clear-logs-btn" style="
+                    background: linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(220, 38, 38, 0.15) 100%);
+                    color: #FCA5A5;
+                    border: 1px solid rgba(239, 68, 68, 0.3);
+                    padding: 8px 14px;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    font-size: 12px;
+                    font-weight: 600;
+                    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                " onmouseover="this.style.background='linear-gradient(135deg, rgba(239, 68, 68, 0.25) 0%, rgba(220, 38, 38, 0.25) 100%)'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(239, 68, 68, 0.3)'" onmouseout="this.style.background='linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(220, 38, 38, 0.15) 100%)'; this.style.transform='translateY(0)'; this.style.boxShadow='none'">🧹 Clear</button>
+                <button id="am-export-logs-btn" style="
+                    background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.15) 100%);
+                    color: #6EE7B7;
+                    border: 1px solid rgba(16, 185, 129, 0.3);
+                    padding: 8px 14px;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    font-size: 12px;
+                    font-weight: 600;
+                    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                " onmouseover="this.style.background='linear-gradient(135deg, rgba(16, 185, 129, 0.25) 0%, rgba(5, 150, 105, 0.25) 100%)'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(16, 185, 129, 0.3)'" onmouseout="this.style.background='linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.15) 100%)'; this.style.transform='translateY(0)'; this.style.boxShadow='none'">💿 Export</button>
+                <div style="height: 24px; width: 1px; background: rgba(148, 163, 184, 0.2);"></div>
+                <label style="
+                    color: #CBD5E1;
+                    font-size: 12px;
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    padding: 6px 10px;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    font-weight: 500;
+                " onmouseover="this.style.background='rgba(59, 130, 246, 0.1)'" onmouseout="this.style.background='transparent'">
+                    <input type="checkbox" id="am-filter-info" checked style="
+                        accent-color: #3B82F6;
+                        width: 16px;
+                        height: 16px;
+                        cursor: pointer;
+                    "> <span style="color: #60A5FA;">📗</span> Info
                 </label>
-                <label style="color: #E8F8F5; font-size: 12px; display: flex; align-items: center; gap: 5px;">
-                    <input type="checkbox" id="am-filter-warning" checked style="accent-color: #E67E22;"> ⚡ Warning
+                <label style="
+                    color: #CBD5E1;
+                    font-size: 12px;
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    padding: 6px 10px;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    font-weight: 500;
+                " onmouseover="this.style.background='rgba(251, 146, 60, 0.1)'" onmouseout="this.style.background='transparent'">
+                    <input type="checkbox" id="am-filter-warning" checked style="
+                        accent-color: #F59E0B;
+                        width: 16px;
+                        height: 16px;
+                        cursor: pointer;
+                    "> <span style="color: #FBBF24;">⚡</span> Warning
                 </label>
-                <label style="color: #E8F8F5; font-size: 12px; display: flex; align-items: center; gap: 5px;">
-                    <input type="checkbox" id="am-filter-error" checked style="accent-color: #C0392B;"> 🚨 Error
+                <label style="
+                    color: #CBD5E1;
+                    font-size: 12px;
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    padding: 6px 10px;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    font-weight: 500;
+                " onmouseover="this.style.background='rgba(239, 68, 68, 0.1)'" onmouseout="this.style.background='transparent'">
+                    <input type="checkbox" id="am-filter-error" checked style="
+                        accent-color: #EF4444;
+                        width: 16px;
+                        height: 16px;
+                        cursor: pointer;
+                    "> <span style="color: #F87171;">🚨</span> Error
                 </label>
-                <label style="color: #E8F8F5; font-size: 12px; display: flex; align-items: center; gap: 5px;">
-                    <input type="checkbox" id="am-filter-debug" checked style="accent-color: #8E44AD;"> 🛠️ Debug
+                <label style="
+                    color: #CBD5E1;
+                    font-size: 12px;
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    padding: 6px 10px;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    font-weight: 500;
+                " onmouseover="this.style.background='rgba(168, 85, 247, 0.1)'" onmouseout="this.style.background='transparent'">
+                    <input type="checkbox" id="am-filter-debug" checked style="
+                        accent-color: #A855F7;
+                        width: 16px;
+                        height: 16px;
+                        cursor: pointer;
+                    "> <span style="color: #C084FC;">🛠️</span> Debug
                 </label>
             `
 
-      // Create search bar
       const searchBar = document.createElement("div")
       searchBar.style.cssText = `
-                background: #148F77;
-                padding: 8px 16px;
-                border-bottom: 1px solid #1ABC9C;
+                background: rgba(15, 23, 42, 0.5);
+                padding: 12px 20px;
+                border-bottom: 1px solid rgba(148, 163, 184, 0.1);
             `
       searchBar.innerHTML = `
-                <input type="text" id="am-search-logs" placeholder="🔎 Search logs..." style="
-                    width: 100%;
-                    background: #117A65;
-                    border: 1px solid #1ABC9C;
-                    color: #E8F8F5;
-                    padding: 8px 12px;
-                    border-radius: 6px;
-                    font-size: 12px;
-                    outline: none;
-                ">
+                <div style="position: relative;">
+                    <div style="
+                        position: absolute;
+                        left: 14px;
+                        top: 50%;
+                        transform: translateY(-50%);
+                        font-size: 14px;
+                        opacity: 0.5;
+                    ">🔎</div>
+                    <input type="text" id="am-search-logs" placeholder="Search logs..." style="
+                        width: 100%;
+                        background: rgba(30, 41, 59, 0.5);
+                        border: 1px solid rgba(148, 163, 184, 0.2);
+                        color: #E2E8F0;
+                        padding: 10px 14px 10px 40px;
+                        border-radius: 10px;
+                        font-size: 13px;
+                        outline: none;
+                        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                        font-family: inherit;
+                    " onfocus="this.style.background='rgba(30, 41, 59, 0.8)'; this.style.borderColor='rgba(59, 130, 246, 0.5)'; this.style.boxShadow='0 0 0 3px rgba(59, 130, 246, 0.1)'" onblur="this.style.background='rgba(30, 41, 59, 0.5)'; this.style.borderColor='rgba(148, 163, 184, 0.2)'; this.style.boxShadow='none'">
+                </div>
             `
 
-      // Create logs container
       const logsContainer = document.createElement("div")
       logsContainer.id = "am-logs-container"
       logsContainer.style.cssText = `
                 flex: 1;
                 overflow-y: auto;
-                padding: 8px;
-                background: #117A65;
-                color: #E8F8F5;
-                font-size: 12px;
-                line-height: 1.4;
+                padding: 16px;
+                background: rgba(15, 23, 42, 0.3);
+                color: #E2E8F0;
+                font-size: 13px;
+                line-height: 1.5;
             `
 
-      // Create status bar
+      // Add custom scrollbar styles
+      const scrollbarStyle = document.createElement("style")
+      scrollbarStyle.textContent = `
+                #am-logs-container::-webkit-scrollbar {
+                    width: 8px;
+                }
+                #am-logs-container::-webkit-scrollbar-track {
+                    background: rgba(30, 41, 59, 0.3);
+                    border-radius: 4px;
+                }
+                #am-logs-container::-webkit-scrollbar-thumb {
+                    background: rgba(100, 116, 139, 0.5);
+                    border-radius: 4px;
+                    transition: background 0.2s;
+                }
+                #am-logs-container::-webkit-scrollbar-thumb:hover {
+                    background: rgba(100, 116, 139, 0.7);
+                }
+            `
+      document.head.appendChild(scrollbarStyle)
+
       const statusBar = document.createElement("div")
       statusBar.id = "am-status-bar"
       statusBar.style.cssText = `
-                background: #148F77;
-                color: #D5F4E6;
-                padding: 6px 16px;
-                border-top: 1px solid #1ABC9C;
+                background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(147, 51, 234, 0.1) 100%);
+                border-top: 1px solid rgba(148, 163, 184, 0.15);
+                color: #94A3B8;
+                padding: 10px 20px;
                 font-size: 11px;
-                border-radius: 0 0 10px 10px;
+                font-weight: 500;
+                letter-spacing: 0.02em;
+                display: flex;
+                align-items: center;
+                gap: 8px;
             `
-      statusBar.textContent = "Ready • 0 logs"
+      statusBar.innerHTML = `
+                <div style="
+                    width: 6px;
+                    height: 6px;
+                    background: #10B981;
+                    border-radius: 50%;
+                    box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+                    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+                "></div>
+                <span id="am-status-text">Ready • 0 logs</span>
+            `
 
-      // Assemble console
+      // Add pulse animation
+      const pulseStyle = document.createElement("style")
+      pulseStyle.textContent = `
+                @keyframes pulse {
+                    0%, 100% { opacity: 1; }
+                    50% { opacity: 0.5; }
+                }
+            `
+      document.head.appendChild(pulseStyle)
+
       this.consoleWindow.appendChild(header)
       this.consoleWindow.appendChild(toolbar)
       this.consoleWindow.appendChild(searchBar)
       this.consoleWindow.appendChild(logsContainer)
       this.consoleWindow.appendChild(statusBar)
 
-      // Add to document
       document.body.appendChild(this.consoleWindow)
 
-      // Add event listeners
       this._addConsoleEventListeners()
-
-      // Make draggable
       this._makeDraggable(header, this.consoleWindow)
     }
 
     _createPerformanceMonitor() {
-      // Create performance window
       this.performanceWindow = document.createElement("div")
       this.performanceWindow.id = "advanced-monitor-performance"
       this.performanceWindow.style.cssText = `
                 position: fixed;
                 top: 50px;
                 left: 20px;
-                width: 500px;
-                height: 600px;
-                background: linear-gradient(135deg, #8E44AD 0%, #9B59B6 100%);
-                border: 2px solid #BB8FCE;
-                border-radius: 12px;
-                box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+                width: 550px;
+                height: 650px;
+                background: rgba(15, 23, 42, 0.85);
+                backdrop-filter: blur(20px) saturate(180%);
+                -webkit-backdrop-filter: blur(20px) saturate(180%);
+                border: 1px solid rgba(148, 163, 184, 0.2);
+                border-radius: 16px;
+                box-shadow: 
+                    0 0 0 1px rgba(255, 255, 255, 0.05),
+                    0 20px 25px -5px rgba(0, 0, 0, 0.4),
+                    0 10px 10px -5px rgba(0, 0, 0, 0.3),
+                    0 0 60px rgba(168, 85, 247, 0.15);
                 z-index: 999998;
-                font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
                 display: none;
                 flex-direction: column;
-                backdrop-filter: blur(10px);
+                overflow: hidden;
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             `
 
-      // Create header
       const perfHeader = document.createElement("div")
       perfHeader.style.cssText = `
-                background: linear-gradient(90deg, #9B59B6, #8E44AD);
+                background: linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(217, 70, 239, 0.15) 100%);
+                border-bottom: 1px solid rgba(148, 163, 184, 0.15);
                 color: white;
-                padding: 12px 16px;
-                border-radius: 10px 10px 0 0;
+                padding: 16px 20px;
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                font-weight: bold;
+                font-weight: 600;
                 font-size: 14px;
                 cursor: move;
+                letter-spacing: -0.01em;
             `
       perfHeader.innerHTML = `
-                <span>📊 Performance Monitor</span>
-                <div>
-                    <button id="am-perf-reset" style="background: #E67E22; border: none; color: white; padding: 4px 8px; border-radius: 4px; margin-right: 5px; cursor: pointer; font-size: 11px;">🔄 Reset</button>
-                    <button id="am-close-perf" style="background: #C0392B; border: none; color: white; padding: 4px 8px; border-radius: 4px; cursor: pointer;">×</button>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="
+                        width: 32px;
+                        height: 32px;
+                        background: linear-gradient(135deg, #A855F7 0%, #D946EF 100%);
+                        border-radius: 8px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 16px;
+                        box-shadow: 0 4px 12px rgba(168, 85, 247, 0.3);
+                    ">📊</div>
+                    <span style="background: linear-gradient(135deg, #C084FC 0%, #E879F9 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 700;">Performance Monitor</span>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button id="am-perf-reset" style="
+                        background: linear-gradient(135deg, rgba(251, 146, 60, 0.2) 0%, rgba(249, 115, 22, 0.2) 100%);
+                        border: 1px solid rgba(251, 146, 60, 0.3);
+                        color: #FCD34D;
+                        padding: 6px 12px;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        font-size: 11px;
+                        font-weight: 600;
+                        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                    " onmouseover="this.style.background='linear-gradient(135deg, rgba(251, 146, 60, 0.3) 0%, rgba(249, 115, 22, 0.3) 100%)'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(251, 146, 60, 0.3)'" onmouseout="this.style.background='linear-gradient(135deg, rgba(251, 146, 60, 0.2) 0%, rgba(249, 115, 22, 0.2) 100%)'; this.style.transform='translateY(0)'; this.style.boxShadow='none'">🔄 Reset</button>
+                    <button id="am-close-perf" style="
+                        background: rgba(239, 68, 68, 0.2);
+                        border: 1px solid rgba(239, 68, 68, 0.3);
+                        color: #FCA5A5;
+                        width: 32px;
+                        height: 32px;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        font-size: 16px;
+                        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                    " onmouseover="this.style.background='rgba(239, 68, 68, 0.3)'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(239, 68, 68, 0.3)'" onmouseout="this.style.background='rgba(239, 68, 68, 0.2)'; this.style.transform='translateY(0)'; this.style.boxShadow='none'">×</button>
                 </div>
             `
 
-      // Create metrics container
       const metricsContainer = document.createElement("div")
       metricsContainer.id = "am-metrics-container"
       metricsContainer.style.cssText = `
                 flex: 1;
                 overflow-y: auto;
-                padding: 16px;
-                background: #7D3C98;
-                color: #F4ECF7;
+                padding: 20px;
+                background: rgba(15, 23, 42, 0.3);
+                color: #E2E8F0;
             `
 
-      // Create real-time metrics display
+      // Add scrollbar styles for metrics
+      const metricsScrollStyle = document.createElement("style")
+      metricsScrollStyle.textContent = `
+                #am-metrics-container::-webkit-scrollbar {
+                    width: 8px;
+                }
+                #am-metrics-container::-webkit-scrollbar-track {
+                    background: rgba(30, 41, 59, 0.3);
+                    border-radius: 4px;
+                }
+                #am-metrics-container::-webkit-scrollbar-thumb {
+                    background: rgba(100, 116, 139, 0.5);
+                    border-radius: 4px;
+                }
+                #am-metrics-container::-webkit-scrollbar-thumb:hover {
+                    background: rgba(100, 116, 139, 0.7);
+                }
+            `
+      document.head.appendChild(metricsScrollStyle)
+
       metricsContainer.innerHTML = `
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px;">
-                    <div style="background: rgba(0,0,0,0.2); padding: 16px; border-radius: 8px; border-left: 4px solid #3498DB;">
-                        <div style="font-size: 11px; color: #D7BDE2; margin-bottom: 4px;">⚡ FPS</div>
-                        <div id="am-fps-value" style="font-size: 28px; font-weight: bold; color: #3498DB;">0</div>
-                        <div id="am-fps-bar" style="height: 4px; background: rgba(52, 152, 219, 0.3); border-radius: 2px; margin-top: 8px; overflow: hidden;">
-                            <div id="am-fps-fill" style="height: 100%; background: #3498DB; width: 0%; transition: width 0.3s;"></div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px;">
+                    <div style="
+                        background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.05) 100%);
+                        backdrop-filter: blur(10px);
+                        padding: 18px;
+                        border-radius: 12px;
+                        border: 1px solid rgba(59, 130, 246, 0.2);
+                        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+                        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                    " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 20px rgba(59, 130, 246, 0.2)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(0, 0, 0, 0.1)'">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                            <div style="font-size: 20px;">⚡</div>
+                            <div style="font-size: 11px; color: #94A3B8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">FPS</div>
+                        </div>
+                        <div id="am-fps-value" style="font-size: 36px; font-weight: 700; color: #60A5FA; line-height: 1; margin-bottom: 12px;">0</div>
+                        <div id="am-fps-bar" style="height: 6px; background: rgba(59, 130, 246, 0.2); border-radius: 3px; overflow: hidden;">
+                            <div id="am-fps-fill" style="height: 100%; background: linear-gradient(90deg, #3B82F6, #60A5FA); width: 0%; transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);"></div>
                         </div>
                     </div>
                     
-                    <div style="background: rgba(0,0,0,0.2); padding: 16px; border-radius: 8px; border-left: 4px solid #E74C3C;">
-                        <div style="font-size: 11px; color: #D7BDE2; margin-bottom: 4px;">🎯 Block Executions</div>
-                        <div id="am-blocks-value" style="font-size: 28px; font-weight: bold; color: #E74C3C;">0</div>
-                        <div style="font-size: 10px; color: #D7BDE2; margin-top: 4px;">Total tracked</div>
+                    <div style="
+                        background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.05) 100%);
+                        backdrop-filter: blur(10px);
+                        padding: 18px;
+                        border-radius: 12px;
+                        border: 1px solid rgba(239, 68, 68, 0.2);
+                        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+                        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                    " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 20px rgba(239, 68, 68, 0.2)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(0, 0, 0, 0.1)'">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                            <div style="font-size: 20px;">🎯</div>
+                            <div style="font-size: 11px; color: #94A3B8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Blocks</div>
+                        </div>
+                        <div id="am-blocks-value" style="font-size: 36px; font-weight: 700; color: #F87171; line-height: 1; margin-bottom: 4px;">0</div>
+                        <div style="font-size: 10px; color: #94A3B8; font-weight: 500;">Total executions</div>
                     </div>
                     
-                    <div style="background: rgba(0,0,0,0.2); padding: 16px; border-radius: 8px; border-left: 4px solid #F39C12;">
-                        <div style="font-size: 11px; color: #D7BDE2; margin-bottom: 4px;">⏱️ Avg Execution Time</div>
-                        <div id="am-time-value" style="font-size: 28px; font-weight: bold; color: #F39C12;">0ms</div>
-                        <div style="font-size: 10px; color: #D7BDE2; margin-top: 4px;">Per block group</div>
+                    <div style="
+                        background: linear-gradient(135deg, rgba(251, 146, 60, 0.1) 0%, rgba(249, 115, 22, 0.05) 100%);
+                        backdrop-filter: blur(10px);
+                        padding: 18px;
+                        border-radius: 12px;
+                        border: 1px solid rgba(251, 146, 60, 0.2);
+                        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+                        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                    " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 20px rgba(251, 146, 60, 0.2)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(0, 0, 0, 0.1)'">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                            <div style="font-size: 20px;">⏱️</div>
+                            <div style="font-size: 11px; color: #94A3B8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Avg Time</div>
+                        </div>
+                        <div id="am-time-value" style="font-size: 36px; font-weight: 700; color: #FB923C; line-height: 1; margin-bottom: 4px;">0ms</div>
+                        <div style="font-size: 10px; color: #94A3B8; font-weight: 500;">Per block group</div>
                     </div>
                     
-                    <div style="background: rgba(0,0,0,0.2); padding: 16px; border-radius: 8px; border-left: 4px solid #27AE60;">
-                        <div style="font-size: 11px; color: #D7BDE2; margin-bottom: 4px;">📝 Log Rate</div>
-                        <div id="am-lograte-value" style="font-size: 28px; font-weight: bold; color: #27AE60;">0</div>
-                        <div style="font-size: 10px; color: #D7BDE2; margin-top: 4px;">Logs per second</div>
+                    <div style="
+                        background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.05) 100%);
+                        backdrop-filter: blur(10px);
+                        padding: 18px;
+                        border-radius: 12px;
+                        border: 1px solid rgba(16, 185, 129, 0.2);
+                        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+                        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                    " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 20px rgba(16, 185, 129, 0.2)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(0, 0, 0, 0.1)'">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                            <div style="font-size: 20px;">📝</div>
+                            <div style="font-size: 11px; color: #94A3B8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Log Rate</div>
+                        </div>
+                        <div id="am-lograte-value" style="font-size: 36px; font-weight: 700; color: #34D399; line-height: 1; margin-bottom: 4px;">0</div>
+                        <div style="font-size: 10px; color: #94A3B8; font-weight: 500;">Logs per second</div>
                     </div>
                 </div>
 
-                <div style="background: rgba(0,0,0,0.2); padding: 16px; border-radius: 8px; margin-bottom: 12px;">
-                    <div style="font-size: 13px; font-weight: bold; color: #F4ECF7; margin-bottom: 12px;">📈 FPS History (Last 60s)</div>
-                    <canvas id="am-fps-chart" width="450" height="120" style="width: 100%; background: rgba(0,0,0,0.2); border-radius: 4px;"></canvas>
+                <div style="
+                    background: linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(37, 99, 235, 0.03) 100%);
+                    backdrop-filter: blur(10px);
+                    padding: 20px;
+                    border-radius: 12px;
+                    margin-bottom: 14px;
+                    border: 1px solid rgba(59, 130, 246, 0.15);
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+                ">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
+                        <div style="font-size: 18px;">📈</div>
+                        <div style="font-size: 13px; font-weight: 700; color: #E2E8F0; letter-spacing: -0.01em;">FPS History</div>
+                        <div style="font-size: 11px; color: #64748B; margin-left: auto;">Last 60s</div>
+                    </div>
+                    <canvas id="am-fps-chart" width="490" height="140" style="width: 100%; background: rgba(15, 23, 42, 0.4); border-radius: 8px; border: 1px solid rgba(59, 130, 246, 0.1);"></canvas>
                 </div>
 
-                <div style="background: rgba(0,0,0,0.2); padding: 16px; border-radius: 8px; margin-bottom: 12px;">
-                    <div style="font-size: 13px; font-weight: bold; color: #F4ECF7; margin-bottom: 12px;">🎯 Block Execution History</div>
-                    <canvas id="am-blocks-chart" width="450" height="120" style="width: 100%; background: rgba(0,0,0,0.2); border-radius: 4px;"></canvas>
+                <div style="
+                    background: linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(220, 38, 38, 0.03) 100%);
+                    backdrop-filter: blur(10px);
+                    padding: 20px;
+                    border-radius: 12px;
+                    margin-bottom: 14px;
+                    border: 1px solid rgba(239, 68, 68, 0.15);
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+                ">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
+                        <div style="font-size: 18px;">🎯</div>
+                        <div style="font-size: 13px; font-weight: 700; color: #E2E8F0; letter-spacing: -0.01em;">Block Execution History</div>
+                    </div>
+                    <canvas id="am-blocks-chart" width="490" height="140" style="width: 100%; background: rgba(15, 23, 42, 0.4); border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.1);"></canvas>
                 </div>
 
-                <div style="background: rgba(0,0,0,0.2); padding: 16px; border-radius: 8px;">
-                    <div style="font-size: 13px; font-weight: bold; color: #F4ECF7; margin-bottom: 8px;">ℹ️ System Information</div>
-                    <div style="font-size: 11px; color: #D7BDE2; line-height: 1.6;">
-                        <div>🖥️ User Agent: <span id="am-useragent" style="color: #F4ECF7;">Loading...</span></div>
-                        <div>🌐 Platform: <span id="am-platform" style="color: #F4ECF7;">Loading...</span></div>
-                        <div>⏰ Uptime: <span id="am-uptime" style="color: #F4ECF7;">0s</span></div>
-                        <div>📊 Total Logs: <span id="am-total-logs" style="color: #F4ECF7;">0</span></div>
+                <div style="
+                    background: linear-gradient(135deg, rgba(100, 116, 139, 0.08) 0%, rgba(71, 85, 105, 0.03) 100%);
+                    backdrop-filter: blur(10px);
+                    padding: 20px;
+                    border-radius: 12px;
+                    border: 1px solid rgba(100, 116, 139, 0.2);
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+                ">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
+                        <div style="font-size: 18px;">ℹ️</div>
+                        <div style="font-size: 13px; font-weight: 700; color: #E2E8F0; letter-spacing: -0.01em;">System Information</div>
+                    </div>
+                    <div style="font-size: 12px; color: #94A3B8; line-height: 1.8; font-weight: 500;">
+                        <div style="display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid rgba(148, 163, 184, 0.1);">
+                            <span style="opacity: 0.7;">🖥️ User Agent:</span>
+                            <span id="am-useragent" style="color: #CBD5E1; margin-left: auto; text-align: right; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Loading...</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid rgba(148, 163, 184, 0.1);">
+                            <span style="opacity: 0.7;">🌐 Platform:</span>
+                            <span id="am-platform" style="color: #CBD5E1; margin-left: auto;">Loading...</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid rgba(148, 163, 184, 0.1);">
+                            <span style="opacity: 0.7;">⏰ Uptime:</span>
+                            <span id="am-uptime" style="color: #CBD5E1; margin-left: auto;">0s</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px; padding: 8px 0;">
+                            <span style="opacity: 0.7;">📊 Total Logs:</span>
+                            <span id="am-total-logs" style="color: #CBD5E1; margin-left: auto;">0</span>
+                        </div>
                     </div>
                 </div>
             `
 
-      // Assemble performance window
       this.performanceWindow.appendChild(perfHeader)
       this.performanceWindow.appendChild(metricsContainer)
 
-      // Add to document
       document.body.appendChild(this.performanceWindow)
 
-      // Add event listeners
       this._addPerformanceEventListeners()
-
-      // Make draggable
       this._makeDraggable(perfHeader, this.performanceWindow)
 
-      // Initialize system info
       document.getElementById("am-useragent").textContent = navigator.userAgent.substring(0, 50) + "..."
       document.getElementById("am-platform").textContent = navigator.platform
     }
@@ -704,50 +1041,83 @@
       logElement.className = `am-log-entry am-log-${log.type}`
       logElement.dataset.logId = log.id
 
-      // Add indentation based on execution depth
       const indentPx = log.depth * 20
 
       logElement.style.cssText = `
-                margin-bottom: 4px;
+                margin-bottom: 8px;
                 margin-left: ${indentPx}px;
-                border-radius: 6px;
-                border-left: 4px solid ${this._getLogColor(log.type)};
+                border-radius: 10px;
+                border-left: 3px solid ${this._getLogColor(log.type)};
                 background: ${this._getLogBackground(log.type)};
-                font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-                transition: all 0.2s ease;
+                backdrop-filter: blur(10px);
+                font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+                transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
                 cursor: ${log.isExpandable ? "pointer" : "default"};
                 overflow: hidden;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             `
 
       const icon = this._getLogIcon(log.type)
       const typeText = log.type.toUpperCase()
-      const expandIcon = log.isExpandable ? "▶️" : ""
+      const expandIcon = log.isExpandable ? "▶" : ""
 
       logElement.innerHTML = `
-                <div class="am-log-header" style="padding: 8px 12px; display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
+                <div class="am-log-header" style="padding: 12px 16px; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
                     <div style="flex: 1;">
-                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                            ${log.isExpandable ? `<span class="am-expand-icon" style="font-size: 12px; transition: transform 0.2s;">${expandIcon}</span>` : ""}
-                            <span style="font-size: 14px;">${icon}</span>
-                            <span style="color: ${this._getLogColor(log.type)}; font-weight: bold; font-size: 11px;">${typeText}</span>
-                            <span style="color: #A9DFBF; font-size: 10px;">#${log.id}</span>
-                            ${log.depth > 0 ? `<span style="color: #D5F4E6; font-size: 10px;">depth:${log.depth}</span>` : ""}
-                            ${log.isExpandable ? `<span style="color: #E67E22; font-size: 10px;">📋 Click to expand</span>` : ""}
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px; flex-wrap: wrap;">
+                            ${log.isExpandable ? `<span class="am-expand-icon" style="font-size: 10px; transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1); color: ${this._getLogColor(log.type)};">${expandIcon}</span>` : ""}
+                            <span style="font-size: 16px;">${icon}</span>
+                            <span style="
+                                color: ${this._getLogColor(log.type)};
+                                font-weight: 700;
+                                font-size: 10px;
+                                text-transform: uppercase;
+                                letter-spacing: 0.05em;
+                                padding: 2px 8px;
+                                background: ${this._getLogColor(log.type)}20;
+                                border-radius: 4px;
+                            ">${typeText}</span>
+                            <span style="
+                                color: #64748B;
+                                font-size: 10px;
+                                padding: 2px 6px;
+                                background: rgba(100, 116, 139, 0.1);
+                                border-radius: 4px;
+                                font-weight: 600;
+                            ">#${log.id}</span>
+                            ${log.depth > 0 ? `<span style="color: #64748B; font-size: 10px; padding: 2px 6px; background: rgba(100, 116, 139, 0.1); border-radius: 4px;">depth:${log.depth}</span>` : ""}
+                            ${log.isExpandable ? `<span style="color: #FB923C; font-size: 10px; padding: 2px 6px; background: rgba(251, 146, 60, 0.1); border-radius: 4px; font-weight: 500;">📋 Expandable</span>` : ""}
                         </div>
-                        <div style="color: #E8F8F5; font-size: 13px; word-break: break-word;">
+                        <div style="color: #E2E8F0; font-size: 13px; word-break: break-word; line-height: 1.5; font-weight: 500;">
                             ${this._escapeHtml(log.message)}
                         </div>
                     </div>
-                    <div style="color: #A9DFBF; font-size: 10px; white-space: nowrap;">
+                    <div style="
+                        color: #64748B;
+                        font-size: 10px;
+                        white-space: nowrap;
+                        padding: 2px 8px;
+                        background: rgba(100, 116, 139, 0.1);
+                        border-radius: 4px;
+                        font-weight: 600;
+                    ">
                         ${log.time}
                     </div>
                 </div>
                 ${
                   log.isExpandable && log.details
                     ? `
-                    <div class="am-log-details" style="display: none; padding: 0 12px 12px 12px; border-top: 1px solid rgba(255,255,255,0.1); margin-top: 8px;">
-                        <div style="background: rgba(0,0,0,0.3); border-radius: 6px; padding: 12px; margin-top: 8px;">
-                            <div style="color: #E67E22; font-weight: bold; margin-bottom: 8px; font-size: 12px;">📋 Detailed Block Analysis:</div>
+                    <div class="am-log-details" style="display: none; padding: 0 16px 16px 16px; border-top: 1px solid rgba(148, 163, 184, 0.1); margin-top: 8px;">
+                        <div style="
+                            background: rgba(15, 23, 42, 0.5);
+                            border-radius: 8px;
+                            padding: 16px;
+                            margin-top: 12px;
+                            border: 1px solid rgba(148, 163, 184, 0.1);
+                        ">
+                            <div style="color: #FB923C; font-weight: 700; margin-bottom: 12px; font-size: 12px; display: flex; align-items: center; gap: 8px;">
+                                <span>📋</span> Detailed Block Analysis
+                            </div>
                             ${this._formatBlockDetails(log.details)}
                         </div>
                     </div>
@@ -756,7 +1126,6 @@
                 }
             `
 
-      // Add click handler for expandable logs
       if (log.isExpandable) {
         const header = logElement.querySelector(".am-log-header")
         const details = logElement.querySelector(".am-log-details")
@@ -769,30 +1138,44 @@
             details.style.display = "block"
             expandIcon.style.transform = "rotate(90deg)"
             logElement.style.background = this._getLogHoverBackground(log.type)
+            logElement.style.boxShadow = `0 4px 16px ${this._getLogColor(log.type)}30`
           } else {
             details.style.display = "none"
             expandIcon.style.transform = "rotate(0deg)"
             logElement.style.background = this._getLogBackground(log.type)
+            logElement.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.1)"
           }
         })
 
-        // Add hover effect
         header.addEventListener("mouseenter", () => {
           if (!log.isExpanded) {
             logElement.style.background = this._getLogHoverBackground(log.type)
+            logElement.style.transform = "translateX(4px)"
+            logElement.style.boxShadow = `0 4px 12px ${this._getLogColor(log.type)}20`
           }
         })
 
         header.addEventListener("mouseleave", () => {
           if (!log.isExpanded) {
             logElement.style.background = this._getLogBackground(log.type)
+            logElement.style.transform = "translateX(0)"
+            logElement.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.1)"
           }
         })
       } else {
-        // Regular click to copy for non-expandable logs
         logElement.addEventListener("click", () => {
           navigator.clipboard.writeText(`[${log.time}] ${typeText}: ${log.message}`)
           this._showToast("Log copied to clipboard!")
+        })
+
+        logElement.addEventListener("mouseenter", () => {
+          logElement.style.transform = "translateX(4px)"
+          logElement.style.boxShadow = `0 4px 12px ${this._getLogColor(log.type)}20`
+        })
+
+        logElement.addEventListener("mouseleave", () => {
+          logElement.style.transform = "translateX(0)"
+          logElement.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.1)"
         })
       }
 
@@ -801,40 +1184,79 @@
 
     _formatBlockDetails(details) {
       if (!details.blocks || details.blocks.length === 0) {
-        return '<div style="color: #C0392B;">No blocks found</div>'
+        return '<div style="color: #F87171; font-size: 12px;">No blocks found</div>'
       }
 
       let html = `
-                <div style="margin-bottom: 12px;">
-                    <span style="color: #48C9B0;">📊 Total Blocks:</span> <span style="color: #E8F8F5;">${details.blocks.length}</span><br>
-                    <span style="color: #48C9B0;">🎯 Target:</span> <span style="color: #E8F8F5;">${details.target}</span><br>
-                    <span style="color: #48C9B0;">🎭 Sprite:</span> <span style="color: #E8F8F5;">${details.sprite}</span><br>
-                    <span style="color: #48C9B0;">⏰ Execution Time:</span> <span style="color: #E8F8F5;">${details.executionTime}</span>
+                <div style="margin-bottom: 16px; padding: 12px; background: rgba(59, 130, 246, 0.05); border-radius: 6px; border-left: 3px solid #3B82F6;">
+                    <div style="display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; font-size: 12px;">
+                        <span style="color: #60A5FA; font-weight: 600;">📊 Total Blocks:</span>
+                        <span style="color: #E2E8F0; font-weight: 600;">${details.blocks.length}</span>
+                        
+                        <span style="color: #60A5FA; font-weight: 600;">🎯 Target:</span>
+                        <span style="color: #E2E8F0;">${details.target}</span>
+                        
+                        <span style="color: #60A5FA; font-weight: 600;">🎭 Sprite:</span>
+                        <span style="color: #E2E8F0;">${details.sprite}</span>
+                        
+                        <span style="color: #60A5FA; font-weight: 600;">⏰ Execution Time:</span>
+                        <span style="color: #E2E8F0; font-weight: 600;">${details.executionTime}</span>
+                    </div>
                 </div>
-                <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px;">
-                    <div style="color: #E67E22; font-weight: bold; margin-bottom: 8px;">🔍 Block Details:</div>
+                <div style="border-top: 1px solid rgba(148, 163, 184, 0.1); padding-top: 16px;">
+                    <div style="color: #FB923C; font-weight: 700; margin-bottom: 12px; font-size: 12px; display: flex; align-items: center; gap: 8px;">
+                        <span>🔍</span> Block Details
+                    </div>
             `
 
       details.blocks.forEach((block, index) => {
         html += `
-                    <div style="background: rgba(0,0,0,0.2); border-radius: 4px; padding: 8px; margin-bottom: 6px; border-left: 3px solid #48C9B0;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                            <span style="color: #48C9B0; font-weight: bold;">Block ${index + 1}</span>
-                            <span style="color: #D5F4E6; font-size: 10px;">${block.opcode}</span>
+                    <div style="
+                        background: rgba(30, 41, 59, 0.5);
+                        border-radius: 8px;
+                        padding: 14px;
+                        margin-bottom: 10px;
+                        border-left: 3px solid #60A5FA;
+                        transition: all 0.2s;
+                    " onmouseover="this.style.background='rgba(30, 41, 59, 0.7)'; this.style.transform='translateX(4px)'" onmouseout="this.style.background='rgba(30, 41, 59, 0.5)'; this.style.transform='translateX(0)'">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span style="color: #60A5FA; font-weight: 700; font-size: 11px;">Block ${index + 1}</span>
+                            <span style="
+                                color: #94A3B8;
+                                font-size: 10px;
+                                padding: 2px 8px;
+                                background: rgba(100, 116, 139, 0.2);
+                                border-radius: 4px;
+                                font-family: 'SF Mono', monospace;
+                            ">${block.opcode}</span>
                         </div>
-                        <div style="font-size: 11px; color: #D5F4E6;">
-                            <strong>Opcode:</strong> <code style="background: rgba(0,0,0,0.3); padding: 2px 4px; border-radius: 2px;">${block.opcode}</code>
+                        <div style="font-size: 11px; color: #CBD5E1; margin-bottom: 6px;">
+                            <strong style="color: #94A3B8;">Opcode:</strong>
+                            <code style="
+                                background: rgba(15, 23, 42, 0.6);
+                                padding: 3px 8px;
+                                border-radius: 4px;
+                                margin-left: 6px;
+                                color: #60A5FA;
+                                font-family: 'SF Mono', monospace;
+                                font-size: 10px;
+                            ">${block.opcode}</code>
                         </div>
                         ${
                           Object.keys(block.inputs).length > 0
                             ? `
-                            <div style="font-size: 11px; color: #D5F4E6; margin-top: 4px;">
-                                <strong>Inputs:</strong>
-                                <div style="margin-left: 12px; margin-top: 2px;">
+                            <div style="font-size: 11px; color: #CBD5E1; margin-top: 8px;">
+                                <strong style="color: #94A3B8;">Inputs:</strong>
+                                <div style="margin-left: 16px; margin-top: 6px; display: flex; flex-direction: column; gap: 4px;">
                                     ${Object.entries(block.inputs)
                                       .map(
                                         ([key, value]) =>
-                                          `<div>• <span style="color: #E67E22;">${key}:</span> <span style="color: #E8F8F5;">${value.value}</span> <span style="color: #A9DFBF;">(${value.type})</span></div>`,
+                                          `<div style="display: flex; align-items: center; gap: 6px;">
+                                            <span style="color: #FB923C; font-weight: 600;">•</span>
+                                            <span style="color: #FB923C; font-weight: 600;">${key}:</span>
+                                            <span style="color: #E2E8F0;">${value.value}</span>
+                                            <span style="color: #64748B; font-size: 10px;">(${value.type})</span>
+                                        </div>`,
                                       )
                                       .join("")}
                                 </div>
@@ -845,13 +1267,17 @@
                         ${
                           Object.keys(block.fields).length > 0
                             ? `
-                            <div style="font-size: 11px; color: #D5F4E6; margin-top: 4px;">
-                                <strong>Fields:</strong>
-                                <div style="margin-left: 12px; margin-top: 2px;">
+                            <div style="font-size: 11px; color: #CBD5E1; margin-top: 8px;">
+                                <strong style="color: #94A3B8;">Fields:</strong>
+                                <div style="margin-left: 16px; margin-top: 6px; display: flex; flex-direction: column; gap: 4px;">
                                     ${Object.entries(block.fields)
                                       .map(
                                         ([key, value]) =>
-                                          `<div>• <span style="color: #F39C12;">${key}:</span> <span style="color: #E8F8F5;">${value}</span></div>`,
+                                          `<div style="display: flex; align-items: center; gap: 6px;">
+                                            <span style="color: #34D399; font-weight: 600;">•</span>
+                                            <span style="color: #34D399; font-weight: 600;">${key}:</span>
+                                            <span style="color: #E2E8F0;">${value}</span>
+                                        </div>`,
                                       )
                                       .join("")}
                                 </div>
@@ -869,32 +1295,32 @@
 
     _getLogColor(type) {
       const colors = {
-        info: "#3498DB",
-        warning: "#E67E22",
-        error: "#C0392B",
-        debug: "#8E44AD",
+        info: "#3B82F6",
+        warning: "#F59E0B",
+        error: "#EF4444",
+        debug: "#A855F7",
       }
-      return colors[type] || "#A9DFBF"
+      return colors[type] || "#60A5FA"
     }
 
     _getLogBackground(type) {
       const backgrounds = {
-        info: "rgba(52, 152, 219, 0.15)",
-        warning: "rgba(230, 126, 34, 0.15)",
-        error: "rgba(192, 57, 43, 0.15)",
-        debug: "rgba(142, 68, 173, 0.15)",
+        info: "rgba(59, 130, 246, 0.08)",
+        warning: "rgba(245, 158, 11, 0.08)",
+        error: "rgba(239, 68, 68, 0.08)",
+        debug: "rgba(168, 85, 247, 0.08)",
       }
-      return backgrounds[type] || "rgba(169, 223, 191, 0.1)"
+      return backgrounds[type] || "rgba(59, 130, 246, 0.05)"
     }
 
     _getLogHoverBackground(type) {
       const backgrounds = {
-        info: "rgba(52, 152, 219, 0.25)",
-        warning: "rgba(230, 126, 34, 0.25)",
-        error: "rgba(192, 57, 43, 0.25)",
-        debug: "rgba(142, 68, 173, 0.25)",
+        info: "rgba(59, 130, 246, 0.15)",
+        warning: "rgba(245, 158, 11, 0.15)",
+        error: "rgba(239, 68, 68, 0.15)",
+        debug: "rgba(168, 85, 247, 0.15)",
       }
-      return backgrounds[type] || "rgba(169, 223, 191, 0.2)"
+      return backgrounds[type] || "rgba(59, 130, 246, 0.1)"
     }
 
     _getLogIcon(type) {
@@ -915,10 +1341,11 @@
 
     _updateStatusBar() {
       const statusBar = document.getElementById("am-status-bar")
-      if (statusBar) {
+      const statusText = document.getElementById("am-status-text")
+      if (statusText) {
         const totalLogs = this.logs.length
         const visibleLogs = document.querySelectorAll('.am-log-entry:not([style*="display: none"])').length
-        statusBar.textContent = `Ready • ${totalLogs} total logs • ${visibleLogs} visible`
+        statusText.textContent = `Ready • ${totalLogs} total logs • ${visibleLogs} visible`
       }
     }
 
@@ -951,24 +1378,56 @@
                 position: fixed;
                 top: 20px;
                 right: 20px;
-                background: #27AE60;
+                background: rgba(16, 185, 129, 0.95);
+                backdrop-filter: blur(20px);
                 color: white;
-                padding: 12px 20px;
-                border-radius: 6px;
+                padding: 14px 20px;
+                border-radius: 10px;
                 z-index: 1000000;
-                font-family: Arial, sans-serif;
-                font-size: 14px;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-                animation: amSlideIn 0.3s ease;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                font-size: 13px;
+                font-weight: 600;
+                box-shadow: 
+                    0 0 0 1px rgba(255, 255, 255, 0.1),
+                    0 10px 25px rgba(0, 0, 0, 0.3),
+                    0 0 30px rgba(16, 185, 129, 0.3);
+                animation: amSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                display: flex;
+                align-items: center;
+                gap: 10px;
             `
-      toast.textContent = message
+      toast.innerHTML = `
+                <div style="
+                    width: 6px;
+                    height: 6px;
+                    background: white;
+                    border-radius: 50%;
+                    box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+                "></div>
+                <span>${message}</span>
+            `
 
-      // Add animation
       const style = document.createElement("style")
       style.textContent = `
                 @keyframes amSlideIn {
-                    from { transform: translateX(100%); opacity: 0; }
-                    to { transform: translateX(0); opacity: 1; }
+                    from {
+                        transform: translateX(100%);
+                        opacity: 0;
+                    }
+                    to {
+                        transform: translateX(0);
+                        opacity: 1;
+                    }
+                }
+                @keyframes amSlideOut {
+                    from {
+                        transform: translateX(0);
+                        opacity: 1;
+                    }
+                    to {
+                        transform: translateX(100%);
+                        opacity: 0;
+                    }
                 }
             `
       document.head.appendChild(style)
@@ -976,9 +1435,12 @@
       document.body.appendChild(toast)
 
       setTimeout(() => {
-        toast.remove()
-        style.remove()
-      }, 3000)
+        toast.style.animation = "amSlideOut 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
+        setTimeout(() => {
+          toast.remove()
+          style.remove()
+        }, 300)
+      }, 2700)
     }
 
     // Analyze blocks in the substack
