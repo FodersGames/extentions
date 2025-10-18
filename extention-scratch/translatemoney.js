@@ -1,4 +1,4 @@
-;(() => {
+;((Scratch) => {
   class NumberTranslator {
     constructor() {
       this.name = "Number Translator"
@@ -136,6 +136,5 @@
     }
   }
 
-  const Scratch = window.Scratch
   Scratch.extensions.register(new NumberTranslator())
-})()
+})(window.Scratch)
